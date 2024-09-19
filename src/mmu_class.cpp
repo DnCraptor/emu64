@@ -32,7 +32,7 @@ MMU::MMU(void)
 
     InitProcTables();
 
-	srand (time(NULL));
+///srand (time(NULL));
 }
 
 MMU::~MMU(void)

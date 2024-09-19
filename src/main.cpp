@@ -1,241 +1,187 @@
-//////////////////////////////////////////////////
-//                                              //
-// Emu64                                        //
-// von Thorsten Kattanek                        //
-//                                              //
-// #file: main.cpp                              //
-//                                              //
-// Dieser Sourcecode ist Copyright geschützt!   //
-// Geistiges Eigentum von Th.Kattanek           //
-//                                              //
-// Letzte Änderung am 20.03.2022                //
-// www.emu64.de                                 //
-//                                              //
-//////////////////////////////////////////////////
+#include <pico/time.h>
+#include <pico/multicore.h>
+#include <hardware/pwm.h>
+#include "hardware/clocks.h"
+#include <pico/stdlib.h>
+#include <hardware/vreg.h>
+#include <pico/stdio.h>
 
-#include "./single_application.h"
-#include "./main_window.h"
+#include "psram_spi.h"
+#include "nespad.h"
 
-#include "./custom_splashscreen.h"
-#include <QBitmap>
-
-#include "./command_line_class.h"   // Klasse zur Auswertung der KomandLine
-#include "./emu64_commands.h"       // Struktur mit allen verfügbaren Kommandos
-
-#if (!defined(SINGLE_THREADED_PLAYBACK) and defined(Q_WS_X11))
-#include <X11/Xlib.h>
+extern "C" {
+#include "vga.h"
+#include "ps2.h"
+#include "usb.h"
+#include "ram_page.h"
+}
+#if I2S_SOUND
+#include "audio.h"
 #endif
 
-#undef main
+bool SD_CARD_AVAILABLE = false;
+bool runing = true;
+static int16_t last_dss_sample = 0;
+#if PICO_ON_DEVICE
+bool PSRAM_AVAILABLE = false;
+uint32_t DIRECT_RAM_BORDER = PSRAM_AVAILABLE ? RAM_SIZE : (SD_CARD_AVAILABLE ? RAM_PAGE_SIZE : RAM_SIZE);
+extern "C" uint8_t VIDEORAM[VIDEORAM_SIZE];
 
-int main(int argc, char *argv[])
-{
-#if (!defined(SINGLE_THREADED_PLAYBACK) and defined(Q_WS_X11))
-    XInitThreads();
+#ifdef I2S_SOUND
+i2s_config_t i2s_config = i2s_get_default_config();
+static int16_t samples[2][441*2] = { 0 };
+static int active_buffer = 0;
+static int sample_index = 0;
+#else
+pwm_config config = pwm_get_default_config();
+#define PWM_PIN0 (26)
+#define PWM_PIN1 (27)
 #endif
 
-    QCoreApplication::setOrganizationName("ThKattanek");
-    QCoreApplication::setApplicationName("Emu64");
-    QCoreApplication::setApplicationVersion(VERSION_STRING);
 
-    QTextStream *log = nullptr;
-    QDir config_dir = QDir(QDir::homePath() + "/.config/emu64");
+uint16_t true_covox = 0;
 
-    bool start_minimized = false;
-	bool enable_reu = false;
-	bool enable_georam = false;
+struct semaphore vga_start_semaphore;
+/* Renderer loop on Pico's second core */
+void __scratch_y("second_core") second_core() {
+#ifdef SOUND_ENABLED
+#ifdef I2S_SOUND
+    i2s_config.sample_freq = SOUND_FREQUENCY;
+    i2s_config.dma_trans_count = SOUND_FREQUENCY / 100;
+    i2s_volume(&i2s_config, 0);
+    i2s_init(&i2s_config);
+    sleep_ms(100);
+#else
+    gpio_set_function(BEEPER_PIN, GPIO_FUNC_PWM);
+    pwm_init(pwm_gpio_to_slice_num(BEEPER_PIN), &config, true);
 
-    CommandLineClass *cmd_line = new CommandLineClass(argc, argv, "emu64",command_list, command_list_count);
+    gpio_set_function(PWM_PIN0, GPIO_FUNC_PWM);
+    gpio_set_function(PWM_PIN1, GPIO_FUNC_PWM);
 
-    // Prüfen ob ein Fehler bei der Kommandozeilenauswertung auftrat
-    // Wenn ja emu64 beenden. (Fehlerausgabe kommt von CommandLineClass)
-    if(cmd_line->GetCommandCount() < 0)
-    {
-        printf("\"emu64 --help\" liefert weitere Informationen.\n");
-        return(-1);
-    }
+    pwm_config_set_clkdiv(&config, 1.0);
+    pwm_config_set_wrap(&config, (1 << 12) - 1); // MAX PWM value
 
-    if(cmd_line->GetCommandCount() > 0)
-    {
-        for(int i=0; i < cmd_line->GetCommandCount(); i++)
-        {
-            if(cmd_line->GetCommand(i) == CMD_RESET_INI)
-            {
-                QFile *config_file = new QFile(config_dir.path() + "/emu64.ini");
-                if(!config_file->exists())
-                {
-                    std::cout << "emu64.ini existiert nicht, muss deshalb nicht geloescht werden." << std::endl;
-                }
-                else
-                    if(config_file->remove())
-                        std::cout << "emu64.ini wurde geloescht." << std::endl;
-                    else
-                    {
-                        std::cout << "emu64.ini konnte nicht geloescht werden." << std::endl;
-                        return(-1);
-                    }
+    pwm_init(pwm_gpio_to_slice_num(PWM_PIN0), &config, true);
+    pwm_init(pwm_gpio_to_slice_num(PWM_PIN1), &config, true);
+#endif
+#endif
+    graphics_init();
+    graphics_set_buffer(VIDEORAM, 320, 200);
+    graphics_set_textbuffer(VIDEORAM + 32768);
+    memset(VIDEORAM, 0b1010101, VIDEORAM_SIZE);
+    graphics_set_bgcolor(0);
+    graphics_set_offset(0, 0);
+    graphics_set_flashmode(true, true);
+
+    sem_acquire_blocking(&vga_start_semaphore);
+
+    uint64_t tick = time_us_64();
+    uint64_t last_timer_tick = tick, last_cursor_blink = tick, last_sound_tick = tick, last_dss_tick = tick;
+
+    while (true) {
+        if (tick >= last_cursor_blink + 500000) {
+///            cursor_blink_state ^= 1;
+            last_cursor_blink = tick;
+        }
+
+#ifdef SOUND_ENABLED
+        // Sound frequency 44100
+        if (tick >= last_sound_tick + (1000000 / SOUND_FREQUENCY)) {
+            int16_t sample = 0;
+#ifdef I2S_SOUND
+            if (speakerenabled) {
+                sample += speaker_sample();
             }
 
-            if(cmd_line->GetCommand(i) == CMD_MINIMIZED)
-                start_minimized = true;
+            samples[active_buffer][sample_index * 2] = sample;
+            samples[active_buffer][sample_index * 2 + 1] = sample;
 
-			if(cmd_line->GetCommand(i) == CMD_ENABLE_GEORAM)
-				enable_georam = true;
 
-			if(cmd_line->GetCommand(i) == CMD_ENABLE_REU)
-				enable_reu = true;
-        }
 
-        if(cmd_line->GetCommand(0) == CMD_HELP)
-        {
-            cmd_line->ShowHelp();
-            return(0x0);
-        }
-
-        if(cmd_line->GetCommand(0) == CMD_VERSION)
-        {
-            printf("Version: %s\n\n",VERSION_STRING);
-            return(0x0);
-        }
-    }
-
-	if(enable_georam == true && enable_reu == true)
-	{
-        std::cout << "Es können nicht '--enable-georam' und '--enable-reu' gleichzeitig gesetzt werden." << std::endl;
-		return(-1);
-	}
-
-    SingleApplication *app;
-    app = new SingleApplication (argc, argv);
-
-    bool isFirstInstance;
-
-    if(!cmd_line->FoundCommand(CMD_MULTIPLE_INSTANCE))
-    {
-        if (app->alreadyExists())
-        {
-	    QStringList args;
-            for(int i=0;i<argc;i++) args << argv[i];
-	    app->sendMessages(args);
-            isFirstInstance = false;
-            return 0;
-        }
-        else
-        {
-             isFirstInstance = true;
-        }
-    }
-    else
-    {
-        isFirstInstance = true;
-    }
-
-#ifdef _WIN32
-    FreeConsole();
-    QFile LogFile("emu64.log");
+            if (sample_index++ >= i2s_config.dma_trans_count) {
+                sample_index = 0;
+                i2s_dma_write(&i2s_config, samples[active_buffer]);
+                active_buffer ^= 1;
+            }
 #else
-    if(!config_dir.exists())
-    {
-        QDir dir = QDir::root();
-        dir.mkdir(config_dir.path());
-
-        if(!config_dir.exists())
-        {
-            qDebug("Fatal Error ... not created emu64 config directory !!!");
-            return app->exec();
+            int16_t samples[2] = { sample, sample };
+            // register uint8_t r_divider = snd_divider + 4; // TODO: tume up divider per channel
+            uint16_t corrected_sample_l = (uint16_t)((int32_t)samples[0] + 0x8000L) >> 4;
+            uint16_t corrected_sample_r = (uint16_t)((int32_t)samples[1] + 0x8000L) >> 4;
+            // register uint8_t l_divider = snd_divider + 4;
+            //register uint16_t l_v = (uint16_t)((int32_t)sample + 0x8000L) >> 4;
+            pwm_set_gpio_level(PWM_PIN0, corrected_sample_l);
+            pwm_set_gpio_level(PWM_PIN1, corrected_sample_r);
+#endif
+            last_sound_tick = tick;
         }
-    }
-    QFile LogFile(config_dir.path() + "/emu64.log");
 #endif
 
-    if(LogFile.open(QIODevice::WriteOnly | QIODevice::Text))
-    {
-        log = new QTextStream(&LogFile);
+        tick = time_us_64();
+        tight_loop_contents();
     }
-
-#ifdef _WIN32
-    if(log) *log << "*** Emu64 Win32 Binary File ***\n\n";
-#else
-# ifdef __linux__
-    if(log) *log << "*** Emu64 Linux Binary File ***\n\n";
-# else
-#  ifdef __FreeBSD__
-    if(log) *log << "*** Emu64 FreeBSD Binary File ***\n\n";
-#  else
-    if(log) *log << "*** Emu64 POSIX (unknown) Binary File ***\n\n";
-#  endif
-# endif
+}
 #endif
 
-    if(log != nullptr) *log << "Emu64 Version: " << VERSION_STRING << "\n\n";
+static FATFS fs;
 
-    MainWindow *w;
+int main() {
+#if (OVERCLOCKING > 270)
+    hw_set_bits(&vreg_and_chip_reset_hw->vreg, VREG_AND_CHIP_RESET_VREG_VSEL_BITS);
+    sleep_ms(33);
+    set_sys_clock_khz(OVERCLOCKING * 1000, true);
+#else
+    vreg_set_voltage(VREG_VOLTAGE_1_15);
+    sleep_ms(33);
+    set_sys_clock_khz(270000, true);
+#endif
 
-	if(!cmd_line->FoundCommand(CMD_NOSPLASH) && !cmd_line->FoundCommand(CMD_NOGUI))
-    {
-        QPixmap image(":/splash");
-        CustomSplashScreen *splash = new CustomSplashScreen(image);
-        splash->setMask(image.mask());
-        splash->setWindowFlag(Qt :: WindowStaysOnTopHint);
-        splash->show();
+    //stdio_init_all();
 
-        w = new MainWindow(nullptr, splash, log);
-    }
-    else
-    {
-        w = new MainWindow(nullptr, nullptr, log);
-    }
+    gpio_init(PICO_DEFAULT_LED_PIN);
+    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
 
-    w->start_minimized = start_minimized;
-
-    // Wenn --minimized
-	if(start_minimized && !cmd_line->FoundCommand(CMD_NOGUI))
-    {
-        w->showMinimized();
+    for (int i = 0; i < 6; i++) {
+        sleep_ms(23);
+        gpio_put(PICO_DEFAULT_LED_PIN, true);
+        sleep_ms(23);
+        gpio_put(PICO_DEFAULT_LED_PIN, false);
     }
 
-    QObject::connect(app,SIGNAL(messageAvailable(QStringList)),w,SLOT(OnMessage(QStringList)));
+    nespad_begin(clock_get_hz(clk_sys) / 1000, NES_GPIO_CLK, NES_GPIO_DATA, NES_GPIO_LAT);
+    keyboard_init();
 
-    w->SetCustomDataPath("");
+    sem_init(&vga_start_semaphore, 0, 1);
+    multicore_launch_core1(second_core);
+    sem_release(&vga_start_semaphore);
 
-    // Der erste Parameter "--data-path" ist der prioresierte alle nachfolgenden zuweisungen werden ignoriert
-    // Kommt in der regel nicht vor, wird aber für das linux appimage benötigt, da dort im .AppRun
-    // --data-path zwingend übergeben werden muss.
+    sleep_ms(50);
 
-    bool data_path_found = false;
-    for(int i=0; i<cmd_line->GetCommandCount(); i++)
-    {
-        if((cmd_line->GetCommand(i) == CMD_DATA_PATH) && (!data_path_found))
-        {
-            w->SetCustomDataPath(QString(cmd_line->GetArg(i+1)));
-            data_path_found = true;
-        }
+    graphics_set_mode(TEXTMODE_80x30);
+
+    init_psram();
+
+    FRESULT result = f_mount(&fs, "", 1);
+    if (FR_OK != result) {
+        char tmp[80];
+        sprintf(tmp, "Unable to mount SD-card: %d", result);
+        logMsg(tmp);
+    }
+    else {
+        SD_CARD_AVAILABLE = true;
     }
 
-    int ret = 0;
+    DIRECT_RAM_BORDER = PSRAM_AVAILABLE ? RAM_SIZE : (SD_CARD_AVAILABLE ? RAM_PAGE_SIZE : RAM_SIZE);
 
-    w->log = log;
-    w->no_write_ini_exit = true;
-
-	if(w->OnInit(cmd_line->FoundCommand(CMD_NOGUI)) == 0)
-    {
-        w->no_write_ini_exit = false;
-        if(isFirstInstance)
-        {
-            QStringList msg_list;
-            for(int i=0;i<argc;i++) msg_list << argv[i];
-            w->OnMessage(msg_list);
-        }
-
-        ret = app->exec();
+    if (!PSRAM_AVAILABLE && !SD_CARD_AVAILABLE) {
+        logMsg((char *)"Mo PSRAM or SD CARD available. Only 160Kb RAM will be usable...");
+        sleep_ms(3000);
     }
 
-    if(w->IsLimitCyclesEvent) ret = 1;
-    if(w->IsDebugCartEvent) ret = w->DebugCartValue;
-
-    delete w;
-    delete app;
-
-    std::cout << "ExitCode: 0x" << std::hex << ret << std::endl;
-    return ret;
-};
+//    reset86();
+    while (runing) {
+//        if_manager();
+//        exec86(2000);
+    }
+    return 0;
+}

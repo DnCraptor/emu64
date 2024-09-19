@@ -10,3 +10,4 @@ appimage
 CMakeLists.txt.user.*
 manual/index.html
 manual/index.pdf
+bin/

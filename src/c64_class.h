@@ -28,14 +28,9 @@
 #include "./tape1530_class.h"
 #include "./cpu_info.h"
 #include "./vcd_class.h"
-#include "./savepng.h"
-#include "./video_capture_class.h"
+///#include "./savepng.h"
+///#include "./video_capture_class.h"
 
-#include <GL/glu.h>
-
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_opengl.h>
-#include <SDL2/SDL_image.h>
 #include <functional>
 
 #define AudioSampleRate 44100

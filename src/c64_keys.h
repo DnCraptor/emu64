@@ -16,7 +16,7 @@
 #ifndef C64_KEYS_H
 #define C64_KEYS_H
 
-#include <SDL2/SDL_keycode.h>
+///#include <SDL2/SDL_keycode.h>
 #include "./structs.h"
 
 #define C64_KEY_COUNT 72
