@@ -15,6 +15,8 @@
 #ifndef C64CLASS_H
 #define C64CLASS_H
 
+#include <cstdio>
+
 #include "./video_crt_class.h"
 #include "./mmu_class.h"
 #include "./mos6510_class.h"
@@ -35,12 +37,11 @@
 
 #define AudioSampleRate 44100
 
-#define MAX_STRING_LENGTH 1024
+#define MAX_STRING_LENGTH 64 // 1024
 
-#define MAX_FLOPPY_NUM 4
-#define MAX_BREAK_GROUP_NUM 255
-#define MAX_SDL_JOYSTICK_NUM 16
-#define MAX_VJOY_NUM 16
+#define MAX_FLOPPY_NUM 2 // 4
+#define MAX_SDL_JOYSTICK_NUM 1 // 16
+#define MAX_VJOY_NUM 1 // 16
 
 #define SUBDIVS_SCREEN 20             // Für Screenverzerrungen (unterteilung des Bildschirms)
 
@@ -48,7 +49,7 @@
 #define SCREEN_RATIO_5_4 1.25f        // Screenratio 5:4 (1,25)
 #define SCREEN_RATIO_16_9 1.777f      // Screenratio 16:9 (1,777)
 
-#define MAX_VIDEO_DISPLAYS 8				  // Anzahl der Maximal unterstützen Video Displays
+#define MAX_VIDEO_DISPLAYS 1 /// 8				  // Anzahl der Maximal unterstützen Video Displays
 
 enum SCREENSHOT_FORMATS {SCREENSHOT_FORMAT_BMP, SCREENSHOT_FORMAT_PNG, SCREENSHOT_FORMATS_COUNT};
 
@@ -56,7 +57,9 @@ class C64Class
 {
 
 public:
-    C64Class(int *ret_error,int soundbuffer_size , VideoCrtClass *video_crt_output,bool start_minimized, std::function<void(const char*)> log_function, const char *data_path);
+    C64Class(
+///        int *ret_error,int soundbuffer_size , VideoCrtClass *video_crt_output,bool start_minimized, std::function<void(const char*)> log_function, const char *data_path
+    );
     ~C64Class();
     void StartEmulation();
     void EndEmulation();
@@ -68,7 +71,7 @@ public:
     void KeyEvent(uint8_t  matrix_code, KeyStatus status, bool isAutoShift);
     bool LoadC64Roms(const char *kernalrom, const char *basicrom, const char *charrom);
     bool LoadFloppyRom(uint8_t floppy_nr, const char *dos1541rom);
-	bool LoadDiskImage(uint8_t floppy_nr, FILE *file, int typ);
+	bool LoadDiskImage(uint8_t floppy_nr, FIL *file, int typ);
     void LoadPRGFromD64(uint8_t floppy_nr, char *c64_filename, int command);
     void SetFloppyWriteProtect(uint8_t floppy_nr, bool status);
     void SetCommandLine(char *c64_command);
@@ -88,7 +91,7 @@ public:
     void SetWindowAspectRatio(bool enable);
     void SetVSync(bool enable);
     void SetFullscreenAspectRatio(bool enable);
-    void AnalyzeSDLEvent(SDL_Event *event);
+///    void AnalyzeSDLEvent(SDL_Event *event);
     void SetC64Frequency(int c64_frequency);
     void SetC64Speed(int speed);
     void EnableWarpMode(bool enabled);
@@ -106,8 +109,8 @@ public:
 	int GetDisplayMode(int display_index, int mode_index, int &w, int &h, int &refresh_rate, uint32_t &format);
 	void SetFullscreenDisplayMode(int display_index, int mode_index);
 
-	bool LoadTapeImage(FILE *file, int typ);
-	bool RecordTapeImage(FILE* file);
+	bool LoadTapeImage(FIL *file, int typ);
+	bool RecordTapeImage(FIL* file);
     uint8_t SetTapeKeys(uint8_t pressed_key);
     bool GetTapeMotorStatus();
     bool GetTapeRecordLedStatus();
@@ -119,12 +122,12 @@ public:
     void SoftReset();
     void HardReset();
     void SetReset(int status, int hard_reset);
-	int LoadAutoRun(uint8_t floppy_nr, FILE *file, const char *filename, int typ);
-	int LoadPRG(FILE *file, const char* filename, int typ, uint16_t *return_start_address);	// Filename ist nur für Logausgabe / Ausschlaggebend ist FILE*
+	int LoadAutoRun(uint8_t floppy_nr, FIL *file, const char *filename, int typ);
+	int LoadPRG(FIL *file, const char* filename, int typ, uint16_t *return_start_address);	// Filename ist nur für Logausgabe / Ausschlaggebend ist FILE*
 
-	int LoadCRT(FILE *file);
+	int LoadCRT(FIL *file);
     void RemoveCRT();
-	int CreateNewEasyFlashImage(FILE *file, const char *crt_name);
+	int CreateNewEasyFlashImage(FIL *file, const char *crt_name);
 
     void InsertREU();
     void RemoveREU();
@@ -155,7 +158,7 @@ public:
     void GetIECStatus(IEC_STRUCT *iec);
     bool StartDebugLogging(const char *filename);
     void StopDebugLogging();
-    int Disassemble(FILE* file, uint16_t pc, bool line_draw);
+    int Disassemble(FIL* file, uint16_t pc, bool line_draw);
 
     int AddBreakGroup();
     void DelBreakGroup(int index);
@@ -254,34 +257,34 @@ public:
     float_t         screen_aspect_ratio;
     bool            enable_window_aspect_ratio;
     bool            enable_fullscreen_aspect_ratio;
-
+/**
     SDL_Window      *sdl_window;
     SDL_Surface     *sdl_window_icon;
     SDL_GLContext   gl_context;
 
 	SDL_DisplayMode fullscreen_display_mode[MAX_VIDEO_DISPLAYS];
-
+*/
     int             sdl_window_pos_x;
     int             sdl_window_pos_y;
     int             sdl_window_size_width;
     int             sdl_window_size_height;
-
+/***
     SDL_mutex       *mutex1;  // Dient für das füllen des Soundbuffers
 
     SDL_AudioDeviceID audio_dev;
     SDL_AudioSpec   audio_spec_want;
     SDL_AudioSpec   audio_spec_have;
-
-    int             audio_frequency;
-    uint16_t        audio_sample_bit_size;
-    uint16_t        audio_channels;
-    bool            is_audio_sample_little_endian;
-    bool            is_audio_sample_float;
-    bool            is_audio_sample_signed;
+*/
+    int             audio_frequency = AudioSampleRate;
+    uint16_t        audio_sample_bit_size = 16;
+    uint16_t        audio_channels = 2;
+    bool            is_audio_sample_little_endian = false;
+    bool            is_audio_sample_float = false;
+    bool            is_audio_sample_signed = true;
 
     int16_t         *audio_16bit_buffer;
     int             audio_16bit_buffer_size;
-
+/**
     SDL_Surface     *c64_screen;
     GLuint          c64_screen_texture;
     uint8_t         *c64_screen_buffer;
@@ -294,9 +297,10 @@ public:
     POINT_STRUCT    distortion_grid_points[(SUBDIVS_SCREEN+1)*(SUBDIVS_SCREEN+1)];
     POINT_STRUCT    distortion_grid[(SUBDIVS_SCREEN)*(SUBDIVS_SCREEN)*4];
     POINT_STRUCT    distortion_grid_texture_coordinates[(SUBDIVS_SCREEN)*(SUBDIVS_SCREEN)*4];
+    */
 
     int				frame_skip_counter;
-
+/**
     SDL_Surface     *img_joy_arrow0;
     SDL_Surface     *img_joy_arrow1;
     SDL_Surface     *img_joy_button0;
@@ -306,7 +310,7 @@ public:
     GLuint          texture_joy_arrow1;
     GLuint          texture_joy_button0;
     GLuint          texture_joy_button1;
-
+*/
     bool            rec_joy_mapping;
     int             rec_joy_mapping_pos;          // 0-4 // Hoch - Runter - Links - Rechts - Feuer
     int             rec_joy_slot_nr;              // 0 - (MAX_VJOYS-1)
@@ -320,11 +324,11 @@ public:
     uint8_t         game_port1;
     uint8_t         game_port2;
 
-    SDL_Thread      *sdl_thread;
+///    SDL_Thread      *sdl_thread;
     bool            sdl_thread_pause;
     bool            sdl_thread_is_paused;
 
-    SDL_Thread      *warp_thread;
+///    SDL_Thread      *warp_thread;
     bool            warp_thread_end;
 
     uint8_t         *vic_buffer;
@@ -363,7 +367,7 @@ public:
     uint8_t         auto_load_mode;
     char            auto_load_command_line[MAX_STRING_LENGTH];
     char            auto_load_filename[MAX_STRING_LENGTH];
-	FILE*			auto_load_file;
+	FIL*			auto_load_file;
 	int				auto_load_file_typ;
 
     bool            loop_thread_end;
@@ -393,14 +397,14 @@ public:
 
     float_t         sid_volume;
 
-    VideoCaptureClass *video_capture;
+///    VideoCaptureClass *video_capture;
 
 private:
     inline void NextSystemCycle();
     void CalcDistortionGrid();
     void VicRefresh(uint8_t *vic_puffer);
     void CheckKeys();
-    uint16_t DisAss(FILE *file, uint16_t pc, bool line_draw, int source);
+    uint16_t DisAss(FIL *file, uint16_t pc, bool line_draw, int source);
     bool CheckBreakpoints();
     void WriteSidIO(uint16_t address, uint8_t value);
     uint8_t ReadSidIO(uint16_t address);
@@ -416,8 +420,9 @@ private:
     void UpdateMouse();
     int InitVideoCaptureSystem();
     void CloseVideoCaptureSystem();
-    void SwapRBSurface(SDL_Surface *surface); // swaps the color red with blue in sdl surface
+///    void SwapRBSurface(SDL_Surface *surface); // swaps the color red with blue in sdl surface
     void DebugLogging();
+    void log(const char*);
 
     std::function<uint8_t(uint16_t)> *ReadProcTbl;
     std::function<void(uint16_t, uint8_t)> *WriteProcTbl;
@@ -430,7 +435,7 @@ private:
 
     bool sdl_joystick_is_open;
     int  sdl_joystick_count;
-    SDL_Joystick *sdl_joystick[MAX_SDL_JOYSTICK_NUM];
+///    SDL_Joystick *sdl_joystick[MAX_SDL_JOYSTICK_NUM];
     const char *sdl_joystick_name[MAX_SDL_JOYSTICK_NUM];
     bool sdl_joystick_stop_update;
     bool sdl_joystick_update_is_stoped;
@@ -450,8 +455,8 @@ private:
     uint8_t c64_iec_wire;       // Leitungen vom C64 zur Floppy Bit 4=ATN 6=CLK 7=DATA
     uint8_t floppy_iec_wire;    // Leitungen von Floppy zur c64 Bit 6=CLK 7=DATA
 
-    VCDClass iec_export_vdc;      // Klasse zum Exportieren der IEC Signale
-    bool iec_is_dumped;
+///    VCDClass iec_export_vdc;      // Klasse zum Exportieren der IEC Signale
+///    bool iec_is_dumped;
 
     /// Temporär ///
     bool        easy_flash_dirty;
@@ -494,7 +499,7 @@ private:
     // Bit 7 = Schreiben eines Wertes
     // Bit 8 = Beim erreichen einer bestommten Raster Zeile
     // Bit 9 = Beim erreichen eines Zyklus in einer Rasterzeile
-
+/**
     uint16_t        breakpoints[0x10000];
     uint16_t        break_values[16];
     uint16_t        break_status;
@@ -502,7 +507,7 @@ private:
 
     uint8_t         breakgroup_count;
     BREAK_GROUP     *breakgroup[MAX_BREAK_GROUP_NUM];
-
+*/
     ////////////////////////////////////////////////////////////
 
     bool        c64_reset_ready;
@@ -527,7 +532,7 @@ private:
     int         one_opcode_source;
     bool        cpu_states[5];              // true = Feetch / false = no Feetch ::: Index 0=C64 Cpu, 1-4 Floppy 1-4
 
-    FILE*       debug_logging_file;
+    FIL*       debug_logging_file;
     bool        debug_logging;
 
     bool        warp_mode;

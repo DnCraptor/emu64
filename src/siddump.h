@@ -17,7 +17,7 @@
 #define SIDDUMP_H
 
 #include <cstring>
-#include <stdio.h>
+#include "fs.h"
 
 class SIDDumpClass
 {
@@ -40,8 +40,8 @@ private:
 ///// Variable /////
 private:
 
-    FILE* CaptureFile;
-    FILE* PlayFile;
+    FIL* CaptureFile;
+    FIL* PlayFile;
 
     bool  CaptureEnable;
     bool  PlayEnable;

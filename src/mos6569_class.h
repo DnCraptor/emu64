@@ -76,11 +76,11 @@ public:
     uint8_t     *cia2_port_a;
     uint8_t     *cia1_port_b;
     uint8_t     *color_ram;
-
+/**
     uint16_t    *breakpoints;
     uint16_t    *break_status;
     uint16_t    *break_values;
-
+*/
     bool        vic_config[VIC_CONFIG_NUM];
 
     uint8_t     *video_buffer;

@@ -1695,7 +1695,7 @@ void VICII::OneCycle()
     /// Aktueller Zyklus ist nun zuende ///
 
     current_cycle++;
-
+/**
     if(current_cycle == 1)
     {
         if(breakpoints[current_rasterline+1] & 256)
@@ -1718,6 +1718,7 @@ void VICII::OneCycle()
         *break_status |= 512;
         break_values[9] = current_cycle;
     }
+    */
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

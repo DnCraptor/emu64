@@ -14,6 +14,9 @@
 //////////////////////////////////////////////////
 
 #include "reu_class.h"
+extern "C" {
+#include "vga.h"
+}
 
 REUClass::REUClass()
 {
@@ -44,8 +47,8 @@ void REUClass::Remove(void)
 int REUClass::LoadRAM(const char *filename)
 {
     /// REU Inhalt laden ...
-    FILE* file;
-    file = fopen (filename,"rb");
+    FIL* file;
+    file = fopen (filename,FA_READ);
     if (file == NULL)
     {
         return 1;
@@ -58,7 +61,7 @@ int REUClass::LoadRAM(const char *filename)
         reading_bytes = fread(RamBaenke[i],1,0x10000,file);
         if(reading_bytes < 0x10000)
         {
-            printf("Fehler beim laden der %d. REU RamBank\n",i);
+            logMsg("Fehler beim laden der TODO. REU RamBank");
             return 1;
         }
     }
@@ -70,8 +73,8 @@ int REUClass::LoadRAM(const char *filename)
 int REUClass::SaveRAM(const char *filename)
 {
     /// REU Inhalt speichern ...
-    FILE* file;
-    file = fopen (filename,"wb");
+    FIL* file;
+    file = fopen (filename,FA_WRITE | FA_CREATE_ALWAYS);
     if (file == NULL)
     {
         return 1;
@@ -439,14 +442,14 @@ inline void REUClass::Reset(void)
     IO[10] = 63;
 }
 
-bool REUClass::SaveFreez(FILE *File)
+bool REUClass::SaveFreez(FIL *File)
 {
     /// REU Inhalt speichern ...
     for(int i=0;i<32;i++) fwrite(RamBaenke[i],1,0x10000,File);
     return true;
 }
 
-bool REUClass::LoadFreez(FILE *File,unsigned short Version)
+bool REUClass::LoadFreez(FIL *File,unsigned short Version)
 {
     size_t reading_bytes;
 

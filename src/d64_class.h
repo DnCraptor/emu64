@@ -17,12 +17,11 @@
 #define D64_CLASS_H
 
 #include <cstring>
-#include <fstream>
-#include <iostream>
 
 #define D64_IMAGE_SIZE 174848
 
 #include "./structs.h"
+#include "fs.h"
 
 #define D64_NAME_LENGHT 24
 
@@ -31,8 +30,8 @@ class D64Class
     public:
     D64Class();
     ~D64Class();
-	bool CreateDiskImage(FILE *file, const char* diskname, const char* diskid);
-	int LoadD64(FILE *file);
+	bool CreateDiskImage(FIL *file, const char* diskname, const char* diskid);
+	int LoadD64(FIL *file);
     void ReLoad(uint8_t* d64_image_buffer);
     void UnLoadD64();
     bool ExportPrg(int file_number, const char* filename);

@@ -15,6 +15,10 @@
 #include "mos6510_class.h"
 #include "micro_code_tbl_6510.h"
 
+extern "C" {
+#include "vga.h"
+}
+
 #define CHK_RDY	if(!*RDY && !CpuWait){CpuWait=true;MCT--;break;}
 #define OLD_IRQHandling
 
@@ -356,20 +360,7 @@ inline void MOS6510::SET_OVERFLOW(bool status)
 
 inline unsigned char MOS6510::Read(unsigned short adresse)
 {
-	unsigned char wert = ReadProcTbl[(adresse)>>8](adresse);
-
-	if(Breakpoints[adresse] & 16)
-	{
-		*BreakStatus |=16;
-		BreakWerte[4] = adresse;
-	}
-
-	if(Breakpoints[wert] & 64)
-	{
-		*BreakStatus |=64;
-		BreakWerte[6] = wert;
-	}
-	return wert;
+	return ReadProcTbl[(adresse)>>8](adresse);
 }
 
 inline void MOS6510::Write(unsigned short adresse, unsigned char wert)
@@ -381,17 +372,6 @@ inline void MOS6510::Write(unsigned short adresse, unsigned char wert)
 	}
 
 	if(adresse == 0xFF00) WRITE_FF00 = true;
-	if(Breakpoints[adresse] & 32)
-	{
-		*BreakStatus |=32;
-		BreakWerte[5] = adresse;
-	}
-
-	if(Breakpoints[wert] & 128)
-	{
-		*BreakStatus |=128;
-		BreakWerte[7] = wert;
-	}
 	WriteProcTbl[(adresse)>>8](adresse,wert);
 }
 
@@ -407,11 +387,15 @@ bool MOS6510::OneZyklus(void)
 	unsigned short  src;
 	bool            carry_tmp;
 
-	if(*RDY) CpuWait = false;
+	if(*RDY) {
+		CpuWait = false;
+		logMsg("*RDY-> CpuWait=true");
+	}
 
 	if(!*RESET)
 	{
 		CpuWait=true;
+		logMsg("!*RESET-> CpuWait=true");
 	}
 
 	if((*RESET == true) && (RESET_OLD == false))
@@ -476,9 +460,6 @@ bool MOS6510::OneZyklus(void)
 
 			MCT = ((unsigned char*)MicroCodeTable6510 + (Read(PC)*MCTItemSize));
 			AktOpcode = ReadProcTbl[(AktOpcodePC)>>8](AktOpcodePC);
-
-			*HistoryPointer = *HistoryPointer+1;
-			History[*HistoryPointer] = AktOpcodePC;
 
 			PC++;
 
@@ -1733,26 +1714,6 @@ bool MOS6510::OneZyklus(void)
 			*/
 
 			AktOpcodePC = PC;
-			if(Breakpoints[PC] & 1)
-			{
-					*BreakStatus |=1;
-					BreakWerte[0] = PC;
-			}
-			if(Breakpoints[AC] & 2)
-			{
-					*BreakStatus |=2;
-					BreakWerte[1] = AC;
-			}
-			if(Breakpoints[XR] & 4)
-			{
-					*BreakStatus |=4;
-					BreakWerte[2] = XR;
-			}
-			if(Breakpoints[YR] & 8)
-			{
-					*BreakStatus |=8;
-					BreakWerte[3] = YR;
-			}
 
 			if(ResetReadyAdr == PC)
 			{

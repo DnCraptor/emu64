@@ -13,7 +13,6 @@
 //////////////////////////////////////////////////
 
 #include "mmu_class.h"
-#include <fstream>
 
 extern "C" {
 #include "roms.h"

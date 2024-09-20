@@ -134,7 +134,7 @@ uint8_t *CartridgeClass::GetFlash040Byte(uint16_t nr)
     }
 }
 
-int CartridgeClass::LoadCartridgeImage(FILE *file)
+int CartridgeClass::LoadCartridgeImage(FIL *file)
 {
     char signature[17];
     uint16_t version;
@@ -249,7 +249,7 @@ void CartridgeClass::RemoveCartridgeImage()
     ResetAllLEDS();
 }
 
-int CartridgeClass::CreateNewEasyFlashImage(FILE *file, const char* crt_name)
+int CartridgeClass::CreateNewEasyFlashImage(FIL *file, const char* crt_name)
 {
     const char* signature = "C64 CARTRIDGE   ";
     const char* chip_signature = "CHIP";
@@ -345,7 +345,7 @@ int CartridgeClass::CreateNewEasyFlashImage(FILE *file, const char* crt_name)
     return 0;
 }
 
-int CartridgeClass::WriteEasyFlashImage(FILE *file, CARTRIDGE_INFO_STRUCT *cartridge_info)
+int CartridgeClass::WriteEasyFlashImage(FIL *file, CARTRIDGE_INFO_STRUCT *cartridge_info)
 {
     const char* signature = "C64 CARTRIDGE   ";
     const char* chip_signature = "CHIP";
@@ -447,7 +447,7 @@ void CartridgeClass::SetEasyFlashJumper(bool enable)
     easyflash_jumper = enable;
 }
 
-int CartridgeClass::GetCartridgeInfo(FILE *file, CARTRIDGE_INFO_STRUCT* crt_info)
+int CartridgeClass::GetCartridgeInfo(FIL *file, CARTRIDGE_INFO_STRUCT* crt_info)
 {
     char signature[17];
     uint16_t version;
@@ -479,7 +479,7 @@ int CartridgeClass::GetCartridgeInfo(FILE *file, CARTRIDGE_INFO_STRUCT* crt_info
 
 	reading_elements = fread(&version,1,sizeof(version),file);
 
-    sprintf(crt_info->Version,"%X.%2.2X",static_cast<uint8_t>(version), version>>8);
+///    sprintf(crt_info->Version,"%X.%2.2X",static_cast<uint8_t>(version), version>>8);
 
 	reading_elements = fread(&crt_info->HardwareType,1,sizeof(crt_info->HardwareType),file);
     crt_info->HardwareType = static_cast<uint16_t>((crt_info->HardwareType << 8) | (crt_info->HardwareType >> 8));

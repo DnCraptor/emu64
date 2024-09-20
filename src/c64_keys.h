@@ -20,7 +20,7 @@
 #include "./structs.h"
 
 #define C64_KEY_COUNT 72
-
+/**
 C64_KEYS c64_key_table[C64_KEY_COUNT] ={
                                             // C64 Keys //
     {0x00,SDLK_BACKSPACE,false},            /// DEL
@@ -105,7 +105,7 @@ C64_KEYS c64_key_table[C64_KEY_COUNT] ={
     {0x06,SDLK_F6,true},                    /// F6
     {0x07,SDLK_UP,true},                    /// CRSR_U
 };
-
+*/
 const char *c64_key_names[C64_KEY_COUNT]={
     "DEL",
     "RETURN",

@@ -15,6 +15,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "fs.h"
 
 #include "vcd_class.h"
 
@@ -43,7 +44,7 @@ bool VCDClass::Open(const char *filename)
 {
     if(isOpen) return false;
 
-    file = fopen(filename, "wt");
+    file = fopen(filename, FA_WRITE | FA_CREATE_ALWAYS);
     if (file == NULL)
         return false;
 

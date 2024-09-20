@@ -11,10 +11,17 @@
 // www.emu64.de                                 //
 //                                              //
 //////////////////////////////////////////////////
+#include <pico/time.h>
 
 #include "./c64_class.h"
 #include "./c64_keys.h"
 #include "./c64_file_types.h"
+
+extern "C" {
+#include "vga.h"
+}
+
+#define SDL_Delay(x) sleep_ms(x)
 
 ///#include <QDebug>
 
@@ -23,7 +30,25 @@ int SDLThread(void *userdat);
 int SDLThreadLoad(void *userdat);
 int SDLThreadWarp(void *userdat);
 
+extern "C" {
+#include "ram_page.h"
+}
+extern "C" uint8_t VIDEORAM[VIDEORAM_SIZE];
+
 #define C64Takt 985248  // 50,124542Hz (Original C64 PAL)
+
+static MMU _mmu;
+static MOS6510 _cpu;
+static VICII _vic(VIDEORAM);
+static MOS6581_8085 _sid1(0,44100,16);
+///static MOS6581_8085 _sid2(1,44100,16);
+static MOS6526 _cia1(0);
+static MOS6526 _cia2(1);
+static CartridgeClass _crt;
+static REUClass _reu;
+static GEORAMClass _geo;
+static TAPE1530 _tape(44100,16,C64Takt);
+
 
 #define RecPollingWaitStart 20
 
@@ -68,10 +93,12 @@ CPXSBCNOPISBCPXSBCINCISBINXSBCNOPSBCCPXSBCINCISB\
 BEQSBCJAMISBNOPSBCINCISBSEDSBCNOPISBNOPSBCINCISB\
 RSTIRQNMI"};
 
-C64Class::C64Class(int *ret_error, int soundbuffer_size, VideoCrtClass *video_crt_output, bool start_minimized, std::function<void(const char*)> log_function, const char *data_path):
+C64Class::C64Class(
+///    int *ret_error, int soundbuffer_size, VideoCrtClass *video_crt_output, bool start_minimized, std::function<void(const char*)> log_function, const char *data_path
+):
     mmu(nullptr),cpu(nullptr),vic(nullptr),sid1(nullptr),sid2(nullptr),cia1(nullptr),cia2(nullptr),crt(nullptr)
 {
-    *ret_error = 0;
+///    *ret_error = 0;
 
     this->start_minimized = start_minimized;
 
@@ -95,7 +122,8 @@ C64Class::C64Class(int *ret_error, int soundbuffer_size, VideoCrtClass *video_cr
 
     warp_mode = false;
 
-    LogText = log_function;
+    LogText = std::bind(&C64Class::log, this, std::placeholders::_1);
+    ///log_function;
 
     enable_mouse_1351 = false;
     mouse_1351_x_rel = mouse_1351_y_rel = 0;
@@ -107,7 +135,7 @@ C64Class::C64Class(int *ret_error, int soundbuffer_size, VideoCrtClass *video_cr
     mouse_is_hidden = false;
     mouse_hide_counter = 0;
     mouse_hide_time = 3000;
-
+/**
     sprintf(floppy_sound_path,"%s%s",data_path,"/floppy_sounds/");
     sprintf(gfx_path,"%s%s",data_path,"/gfx/");
     sprintf(rom_path,"%s%s",data_path,"/roms/");
@@ -116,13 +144,11 @@ C64Class::C64Class(int *ret_error, int soundbuffer_size, VideoCrtClass *video_cr
     LogText(">> GfxPath = ");
     LogText(gfx_path);
     LogText("\n");
-
+*/
     this->video_crt_output = video_crt_output;
-    breakgroup_count = 0;
-    floppy_found_breakpoint = false;
+///    breakgroup_count = 0;
+///    floppy_found_breakpoint = false;
     enable_ext_wires = false;
-
-    iec_is_dumped = false;
 
     current_c64_screen_width = current_window_width = current_c64_screen_height = current_window_height = 0;
 /**
@@ -145,12 +171,10 @@ C64Class::C64Class(int *ret_error, int soundbuffer_size, VideoCrtClass *video_cr
     screen_aspect_ratio = SCREEN_RATIO_4_3;
     enable_window_aspect_ratio = true;
     enable_fullscreen_aspect_ratio = true;
-    c64_screen_is_obselete = false;
     start_screenshot = false;
     enable_exit_screenshot = false;
     frame_skip_counter = 1;
 
-    enable_distortion = true;
     SetDistortion(-0.05f);
 
     is_screenshot_enable = false;
@@ -173,9 +197,9 @@ C64Class::C64Class(int *ret_error, int soundbuffer_size, VideoCrtClass *video_cr
     }
     else
         LogText(">> SDL2 wurde installiert\n");
-*/
+
     char filename[FILENAME_MAX];
-/**
+
     sprintf(filename,"%spfeil0.png",gfx_path);
     img_joy_arrow0 = IMG_Load(filename);
     if(!img_joy_arrow0)
@@ -255,11 +279,11 @@ C64Class::C64Class(int *ret_error, int soundbuffer_size, VideoCrtClass *video_cr
     /// SLD Audio Installieren (C64 Emulation) ///
 
 */
-    char out_text[1024];
+///    char out_text[1024];
 
     // Alle Audio Devices in Log auflisten
-    sprintf(out_text, ">> Alle Audio Devices:\n");
-    LogText(out_text);
+///    sprintf(out_text, ">> Alle Audio Devices:\n");
+///    LogText(out_text);
 
     int i, count;/** = SDL_GetNumAudioDevices(0);
     for (i = 0; i < count; ++i)
@@ -364,31 +388,25 @@ C64Class::C64Class(int *ret_error, int soundbuffer_size, VideoCrtClass *video_cr
     game_port2 = 0;
 
     /// Init Classes ///
-    mmu = new MMU();
-    cpu = new MOS6510();
-    vic = new VICII();
-    int sid_ret_error;
-    sid1 = new MOS6581_8085(0,audio_frequency,16,&sid_ret_error);
-    sid2 = new MOS6581_8085(1,audio_frequency,16,&sid_ret_error);
-    cia1 = new MOS6526(0);
-    cia2 = new MOS6526(1);
-    crt = new CartridgeClass();
-    reu = new REUClass();
-    geo = new GEORAMClass();
-    tape = new TAPE1530(audio_frequency,16,C64Takt);
+    mmu = &_mmu;
+    cpu = &_cpu;
+    vic = &_vic;
+    sid1 = &_sid1;
+    sid2 = &_sid1; /// 2!
+    cia1 = &_cia1;
+    cia2 = &_cia2;
+    crt = &_crt;
+    reu = &_reu;
+    geo = &_geo;
+    tape = &_tape;;
 
     vic_buffer = vic->video_buffer;
 
     cia2->floppy_iec_wire = &floppy_iec_wire;
     cia2->c64_iec_wire = &c64_iec_wire;
 
-    iec_export_vdc.AddWire("c64_out_atn",false);
-    iec_export_vdc.AddWire("c64_out_clk",false);
-    iec_export_vdc.AddWire("c64_out_data",false);
-    iec_export_vdc.AddWire("floppy_out_clk",false);
-    iec_export_vdc.AddWire("floppy_out_data",false);
-
     /// Floppy mit C64 verbinden ///
+/**
 
     sprintf(filename,"%s1541.rom",rom_path);
 
@@ -398,25 +416,24 @@ C64Class::C64Class(int *ret_error, int soundbuffer_size, VideoCrtClass *video_cr
     char bumper_filename[FILENAME_MAX];
     char stepper_inc_filename[FILENAME_MAX];
     char stepper_dec_filename[FILENAME_MAX];
-
     sprintf(motor_filename,"%smotor.raw",floppy_sound_path);
     sprintf(motor_on_filename,"%smotor_on.raw",floppy_sound_path);
     sprintf(motor_off_filename,"%smotor_off.raw",floppy_sound_path);
     sprintf(bumper_filename,"%sanschlag.raw",floppy_sound_path);
     sprintf(stepper_inc_filename,"%sstepper_inc.raw",floppy_sound_path);
     sprintf(stepper_dec_filename,"%sstepper_dec.raw",floppy_sound_path);
-
+*/
     for(i=0; i<MAX_FLOPPY_NUM; i++)
     {
-        floppy[i] = new Floppy1541(&reset_wire,audio_frequency,16,&floppy_found_breakpoint);
+        floppy[i] = new Floppy1541(&reset_wire,audio_frequency,16);
         floppy[i]->SetResetReady(&floppy_reset_ready[i],0xEBFF);
         floppy[i]->SetC64IEC(&c64_iec_wire);
         floppy[i]->SetDeviceNumber(static_cast<uint8_t>(8+i));
-        floppy[i]->LoadDosRom(filename);
+///        floppy[i]->LoadDosRom(filename);
         //floppy[i]->LoadFloppySounds((char*)"floppy_sounds/motor.raw",(char*)"floppy_sounds/motor_on.raw",(char*)"floppy_sounds/motor_off.raw",(char*)"floppy_sounds/anschlag.raw",(char*)"floppy_sounds/stepper_inc.raw",(char*)"floppy_sounds/stepper_dec.raw");
-        floppy[i]->LoadFloppySounds(motor_filename,motor_on_filename,motor_off_filename,bumper_filename,stepper_inc_filename,stepper_dec_filename);
+///        floppy[i]->LoadFloppySounds(motor_filename,motor_on_filename,motor_off_filename,bumper_filename,stepper_inc_filename,stepper_dec_filename);
         floppy[i]->SetEnableFloppy(false);
-        floppy[i]->SetEnableFloppySound(true);
+        floppy[i]->SetEnableFloppySound(false);///
     }
 
     /// Init Vars ///
@@ -570,6 +587,7 @@ C64Class::C64Class(int *ret_error, int soundbuffer_size, VideoCrtClass *video_cr
     vic->cia2_port_a = cia2->pa->GetOutputBitsPointer();
 
     /// Breakpoints ///
+    /** 
     cpu->BreakStatus = &break_status;
     cpu->BreakWerte = break_values;
     cpu->Breakpoints = breakpoints;
@@ -582,6 +600,7 @@ C64Class::C64Class(int *ret_error, int soundbuffer_size, VideoCrtClass *video_cr
     cpu->HistoryPointer = &cpu_pc_history_pos;
 
     memset(breakpoints, 0, sizeof breakpoints);
+    */
 }
 
 C64Class::~C64Class()
@@ -723,7 +742,6 @@ int SDLThread(void *userdat)
     c64->loop_thread_end = false;
     c64->loop_thread_is_end = false;
     c64->sdl_thread_pause = false;
-    c64->c64_screen_buffer = nullptr;
 
     while (!c64->loop_thread_end)
     {
@@ -745,43 +763,28 @@ int SDLThread(void *userdat)
         if(c64->changed_window_pos)
         {
             c64->changed_window_pos = false;
-            SDL_SetWindowPosition(c64->sdl_window, c64->sdl_window_pos_x, c64->sdl_window_pos_y);
+///            SDL_SetWindowPosition(c64->sdl_window, c64->sdl_window_pos_x, c64->sdl_window_pos_y);
         }
 
         if(c64->changed_window_size)
         {
             c64->changed_window_size = false;
+            /**
             glViewport(0,0,c64->sdl_window_size_width, c64->sdl_window_size_height);
             glMatrixMode(GL_PROJECTION);
             glOrtho(0,c64->sdl_window_size_width, c64->sdl_window_size_height,0,-1,1);
             glLoadIdentity();
             SDL_SetWindowSize(c64->sdl_window, c64->sdl_window_size_width, c64->sdl_window_size_height);
+            */
         }
 
         /// Wird ausgeführt wenn Keine Thread Pause anliegt ///
         if(!c64->sdl_thread_pause)
         {
-            while (SDL_PollEvent (&event))
-            {
-                /// Es ist ein neues SDL Event vorhanden ///
-                /// Event auswerten und verarbeiten ///
-                c64->AnalyzeSDLEvent(&event);
-            }
-
-            /// Wenn der Thread noch nicht beendet wurde ///
-            if(!c64->loop_thread_end)
-            {
-                if(c64->c64_screen_is_obselete)
-                {
-                    c64->DrawC64Screen();
-                    c64->c64_screen_is_obselete = false;
-                }
-                else SDL_Delay(1);
-            }
         }
         else
         {
-            SDL_Delay(1);
+   ///         SDL_Delay(1);
             if(!c64->sdl_thread_is_paused) c64->sdl_thread_is_paused = true;
         }
 
@@ -798,6 +801,7 @@ int SDLThread(void *userdat)
 
 void C64Class::CalcDistortionGrid()
 {
+    /**
     float_t div = 2.0f / SUBDIVS_SCREEN;
     for(int y=0; y<SUBDIVS_SCREEN+1; y++)
         for(int x=0; x<SUBDIVS_SCREEN+1; x++)
@@ -829,6 +833,7 @@ void C64Class::CalcDistortionGrid()
             distortion_grid_texture_coordinates[(SUBDIVS_SCREEN-y-1)*SUBDIVS_SCREEN*4+x*4+3].x = x*div;
             distortion_grid_texture_coordinates[(SUBDIVS_SCREEN-y-1)*SUBDIVS_SCREEN*4+x*4+3].y = y*div;
         }
+        */
 }
 
 void C64Class::VicRefresh(uint8_t *vic_puffer)
@@ -840,7 +845,7 @@ void C64Class::VicRefresh(uint8_t *vic_puffer)
     }
 
     if((video_crt_output == nullptr) || (sdl_thread_pause == true)) return;
-
+/**
     if(SDL_LockSurface(c64_screen) != 0)
     {
         LogText("<< ERROR: SDL Surface (VicRefresh) konnte nicht gelockt werden.\n");
@@ -907,10 +912,10 @@ void C64Class::VicRefresh(uint8_t *vic_puffer)
         start_screenshot = false;
     }
     ////////////////////////////////////
-
+*/
     if(enable_mouse_1351) UpdateMouse();
 
-    c64_screen_is_obselete = true;
+///    c64_screen_is_obselete = true;
 }
 
 void C64Class::WarpModeLoop()
@@ -946,6 +951,7 @@ void C64Class::WarpModeLoop()
             {
                 if(c64_reset_ready)
                 {
+                    /**
                     SDL_ClearError();
                     if(SDL_CreateThread(SDLThreadLoad ,"C64ThreadLoad",this) == nullptr)
                     {
@@ -954,6 +960,7 @@ void C64Class::WarpModeLoop()
                         LogText(SDL_GetError());
                         LogText("\n");
                     }
+                    */
                     wait_reset_ready = false;
                 }
             }
@@ -961,6 +968,7 @@ void C64Class::WarpModeLoop()
             {
                 if((c64_reset_ready == true) && (floppy_reset_ready[0] == true))
                 {
+                    /***
                     SDL_ClearError();
                     if(SDL_CreateThread(SDLThreadLoad ,"C64ThreadLoad",this) == nullptr)
                     {
@@ -969,6 +977,7 @@ void C64Class::WarpModeLoop()
                         LogText(SDL_GetError());
                         LogText("\n");
                     }
+                    */
                     wait_reset_ready = false;
                 }
             }
@@ -997,16 +1006,6 @@ void C64Class::WarpModeLoop()
         }
     }
     //////////////////////////////////////////////////////////////////////////////
-
-    if(iec_is_dumped)
-    {
-        iec_export_vdc.NextStep();
-        iec_export_vdc.SetWire(0,c64_iec_wire & 16);
-        iec_export_vdc.SetWire(1,c64_iec_wire & 64);
-        iec_export_vdc.SetWire(2,c64_iec_wire & 128);
-        iec_export_vdc.SetWire(3,floppy_iec_wire & 64);
-        iec_export_vdc.SetWire(4,floppy_iec_wire & 128);
-    }
 }
 
 int C64Class::GetAudioSampleRate()
@@ -1052,9 +1051,6 @@ void C64Class::FillAudioBuffer(uint8_t *stream, int laenge)
             if(cpu_states[0] && debug_logging)
                 DebugLogging();
 
-            if((break_status != 0) || (floppy_found_breakpoint == true )) if(CheckBreakpoints()) break;
-
-
             ////////////////////////// Testweise //////////////////////////
 
             static int zyklen_counter = 0;
@@ -1067,6 +1063,7 @@ void C64Class::FillAudioBuffer(uint8_t *stream, int laenge)
                     {
                         if(c64_reset_ready)
                         {
+                            /**
                             SDL_ClearError();
                             if(SDL_CreateThread(SDLThreadLoad ,"C64ThreadLoad",this) == nullptr)
                             {
@@ -1075,6 +1072,7 @@ void C64Class::FillAudioBuffer(uint8_t *stream, int laenge)
                                 LogText(SDL_GetError());
                                 LogText("\n");
                             }
+                            */
                             wait_reset_ready = false;
                         }
                     }
@@ -1082,6 +1080,7 @@ void C64Class::FillAudioBuffer(uint8_t *stream, int laenge)
                     {
                         if((c64_reset_ready == true) && (floppy_reset_ready[0] == true))
                         {
+                            /**
                             SDL_ClearError();
                             if(SDL_CreateThread(SDLThreadLoad ,"C64ThreadLoad",this) == nullptr)
                             {
@@ -1090,6 +1089,7 @@ void C64Class::FillAudioBuffer(uint8_t *stream, int laenge)
                                 LogText(SDL_GetError());
                                 LogText("\n");
                             }
+                            */
                             wait_reset_ready = false;
                         }
                     }
@@ -1117,19 +1117,6 @@ void C64Class::FillAudioBuffer(uint8_t *stream, int laenge)
                     c64_command_line_count_s=true;
                 }
             }
-            //////////////////////////////////////////////////////////////////////////////
-
-
-            if(iec_is_dumped)
-            {
-                iec_export_vdc.NextStep();
-                iec_export_vdc.SetWire(0,c64_iec_wire & 16);
-                iec_export_vdc.SetWire(1,c64_iec_wire & 64);
-                iec_export_vdc.SetWire(2,c64_iec_wire & 128);
-                iec_export_vdc.SetWire(3,floppy_iec_wire & 64);
-                iec_export_vdc.SetWire(4,floppy_iec_wire & 128);
-            }
-
         }
 
         int sample_buffer_size = ((laenge / audio_channels) * 2) / (audio_sample_bit_size/8);
@@ -1165,7 +1152,7 @@ void C64Class::FillAudioBuffer(uint8_t *stream, int laenge)
                 j++;
             }
         }
-
+/***
         /// Capture Audio
         video_capture->FillSourceAudioBuffer(audio_16bit_buffer, sample_buffer_size);
 
@@ -1178,7 +1165,7 @@ void C64Class::FillAudioBuffer(uint8_t *stream, int laenge)
 
         /// Tapesound dazu mixen ///
         SDL_MixAudioFormat(reinterpret_cast<uint8_t*>(audio_16bit_buffer),reinterpret_cast<uint8_t*>(tape->GetSoundBuffer()), AUDIO_S16,static_cast<uint32_t>(sample_buffer_size*2),SDL_MIX_MAXVOLUME);
-
+*/
         /// Audio auf Output Stream ausgeben
         if(!is_audio_sample_float && audio_sample_bit_size == 16)
         {
@@ -1239,18 +1226,6 @@ void C64Class::FillAudioBuffer(uint8_t *stream, int laenge)
 
                     if(cpu_states[0] && debug_logging)
                         DebugLogging();
-
-                    if((break_status != 0) || (floppy_found_breakpoint == true )) if(CheckBreakpoints()) break;
-
-                    if(iec_is_dumped)
-                    {
-                        iec_export_vdc.NextStep();
-                        iec_export_vdc.SetWire(0,c64_iec_wire & 16);
-                        iec_export_vdc.SetWire(1,c64_iec_wire & 64);
-                        iec_export_vdc.SetWire(2,c64_iec_wire & 128);
-                        iec_export_vdc.SetWire(3,floppy_iec_wire & 64);
-                        iec_export_vdc.SetWire(4,floppy_iec_wire & 128);
-                    }
                 }
                 animation_speed_counter = 0;
             }
@@ -1267,19 +1242,7 @@ void C64Class::FillAudioBuffer(uint8_t *stream, int laenge)
                 if(cpu_states[0] && debug_logging)
                     DebugLogging();
 
-                if((break_status != 0) || (floppy_found_breakpoint == true )) CheckBreakpoints();
-
                 if(AnimationRefreshProc != nullptr) AnimationRefreshProc();
-
-                if(iec_is_dumped)
-                {
-                    iec_export_vdc.NextStep();
-                    iec_export_vdc.SetWire(0,c64_iec_wire & 16);
-                    iec_export_vdc.SetWire(1,c64_iec_wire & 64);
-                    iec_export_vdc.SetWire(2,c64_iec_wire & 128);
-                    iec_export_vdc.SetWire(3,floppy_iec_wire & 64);
-                    iec_export_vdc.SetWire(4,floppy_iec_wire & 128);
-                }
             }
 
             if(one_opcode)
@@ -1295,19 +1258,7 @@ void C64Class::FillAudioBuffer(uint8_t *stream, int laenge)
                 if(debug_logging)
                     DebugLogging();
 
-                if((break_status != 0) || (floppy_found_breakpoint == true )) CheckBreakpoints();
-
                 if(AnimationRefreshProc != nullptr) AnimationRefreshProc();
-
-                if(iec_is_dumped)
-                {
-                    iec_export_vdc.NextStep();
-                    iec_export_vdc.SetWire(0,c64_iec_wire & 16);
-                    iec_export_vdc.SetWire(1,c64_iec_wire & 64);
-                    iec_export_vdc.SetWire(2,c64_iec_wire & 128);
-                    iec_export_vdc.SetWire(3,floppy_iec_wire & 64);
-                    iec_export_vdc.SetWire(4,floppy_iec_wire & 128);
-                }
             }
         }
 
@@ -1414,7 +1365,7 @@ bool C64Class::LoadFloppyRom(uint8_t floppy_nr, const char *dos1541rom)
     return false;
 }
 
-bool C64Class::LoadDiskImage(uint8_t floppy_nr, FILE *file, int typ)
+bool C64Class::LoadDiskImage(uint8_t floppy_nr, FIL *file, int typ)
 {
     if(floppy_nr < MAX_FLOPPY_NUM)
     {
@@ -1505,12 +1456,13 @@ void C64Class::SetGrafikModi(bool enable_screen_doublesize, bool enable_screen_c
 
 void C64Class::SetSDLWindowName(const char *name)
 {
-    strcpy(sdl_window_name, name);
-    SDL_SetWindowTitle(sdl_window, name);
+///    strcpy(sdl_window_name, name);
+///    SDL_SetWindowTitle(sdl_window, name);
 }
 
 void C64Class::SetFullscreen(bool is_fullscreen)
 {
+    /**
     static int size_w, size_h, pos_x, pos_y;
 	static SDL_DisplayMode window_display_mode;
 
@@ -1550,6 +1502,7 @@ void C64Class::SetFullscreen(bool is_fullscreen)
     }
 
     SetFocusToC64Window();
+    */
 }
 
 void C64Class::ToggleScreenMode()
@@ -1603,12 +1556,12 @@ void C64Class::InitGrafik()
     sprintf(out_string,"\tInitGrafik: C64ScreenWidth: %d, C64ScreenHeight: %d\n",current_c64_screen_width, current_c64_screen_height);
     LogText(out_string);
 
-    current_window_color_bits = 32;
-    if(c64_screen_buffer != nullptr)
-    {
-        delete[] c64_screen_buffer;
-    }
-    c64_screen_buffer = new uint8_t[current_c64_screen_width*current_c64_screen_height*4];
+    current_window_color_bits = 4; // 32;
+///    if(c64_screen_buffer != nullptr)
+///    {
+///        delete[] c64_screen_buffer;
+///    }
+///    c64_screen_buffer = new uint8_t[current_c64_screen_width*current_c64_screen_height*4];
 
     sprintf(out_string,"\tInitGrafik: WindowColorBits: %d\n", current_window_color_bits);
     LogText(out_string);
@@ -1620,7 +1573,7 @@ void C64Class::InitGrafik()
     LogText(out_string);
     sprintf(out_string,"\tInitGrafik: EnableVideoDoubleSize: %d\n", enable_screen_doublesize);
     LogText(out_string);
-
+/**
     if(sdl_window == nullptr)
     {
         LogText("\tInitGrafik: SDL_Window noch nicht vorhanden.\n");
@@ -1814,7 +1767,7 @@ void C64Class::InitGrafik()
         SDL_GL_SetSwapInterval(1);
     else
         SDL_GL_SetSwapInterval(0);
-
+*/
     /// VicRefresh wieder zulassen ///
     enable_hold_vic_refresh = false;
 
@@ -1823,11 +1776,13 @@ void C64Class::InitGrafik()
 
 void C64Class::ChangeVSync()
 {
+    /**
     // VSYNC
     if(enable_vsync)
         SDL_GL_SetSwapInterval(1);
     else
         SDL_GL_SetSwapInterval(0);
+        */
 }
 
 void C64Class::ReleaseGrafik()
@@ -1844,7 +1799,7 @@ void C64Class::ReleaseGrafik()
           SDL_Delay(1);
           timeout--;
     }
-
+/***
     if(c64_screen != nullptr)
     {
        SDL_FreeSurface(c64_screen);
@@ -1862,10 +1817,12 @@ void C64Class::ReleaseGrafik()
         delete[] c64_screen_buffer;
         c64_screen_buffer = nullptr;
     }
+*/
 }
 
 void C64Class::DrawC64Screen()
 {
+    /**
     /// Fensterinhalt löschen
     glClearColor(0.0f, 0.0f, 0.0f, 1.f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1992,11 +1949,12 @@ void C64Class::DrawC64Screen()
     }
 
     SDL_GL_SwapWindow(sdl_window);
+    */
 }
 
 void C64Class::SetFocusToC64Window()
 {
-    SDL_RaiseWindow(sdl_window);
+///    SDL_RaiseWindow(sdl_window);
 }
 
 void C64Class::SetWindowAspectRatio(bool enable)
@@ -2014,7 +1972,7 @@ void C64Class::SetFullscreenAspectRatio(bool enable)
 {
     enable_fullscreen_aspect_ratio = enable;
 }
-
+/**
 void C64Class::AnalyzeSDLEvent(SDL_Event *event)
 {
     static bool joy_center_flag = true;
@@ -2551,11 +2509,11 @@ void C64Class::AnalyzeSDLEvent(SDL_Event *event)
             break;
     }
 }
-
+*/
 void C64Class::SetDistortion(float_t value)
 {
-    distortion_value = value;
-    CalcDistortionGrid();
+///    distortion_value = value;
+///    CalcDistortionGrid();
 }
 
 void C64Class::SetMouseHiddenTime(int time)
@@ -2565,7 +2523,7 @@ void C64Class::SetMouseHiddenTime(int time)
 
 void C64Class::GetWindowPos(int *x, int *y)
 {
-    SDL_GetWindowPosition(sdl_window, x, y);
+///    SDL_GetWindowPosition(sdl_window, x, y);
 }
 
 void C64Class::SetWindowPos(int x, int y)
@@ -2577,7 +2535,7 @@ void C64Class::SetWindowPos(int x, int y)
 
 void C64Class::GetWindowSize(int *w, int *h)
 {
-    SDL_GetWindowSize(sdl_window, w, h);
+    ///SDL_GetWindowSize(sdl_window, w, h);
 }
 
 void C64Class::SetWindowSize(int w, int h)
@@ -2589,21 +2547,22 @@ void C64Class::SetWindowSize(int w, int h)
 
 int C64Class::GetNumDisplays()
 {
-	return SDL_GetNumVideoDisplays();
+	return 1;//SDL_GetNumVideoDisplays();
 }
 
 const char *C64Class::GetDisplayName(int display_index)
 {
-	return SDL_GetDisplayName(display_index);
+	return "";//SDL_GetDisplayName(display_index);
 }
 
 int C64Class::GetNumDisplayModes(int display_index)
 {
-	return SDL_GetNumDisplayModes(display_index);
+	return 1;//SDL_GetNumDisplayModes(display_index);
 }
 
 int C64Class::GetDisplayMode(int display_index, int mode_index, int &w, int &h, int &refresh_rate, uint32_t &format)
 {
+    /**
 	SDL_DisplayMode display_mode = { SDL_PIXELFORMAT_UNKNOWN, 0, 0, 0, 0 };
 
 	if(0 == SDL_GetDisplayMode(display_index, mode_index, &display_mode))
@@ -2614,12 +2573,13 @@ int C64Class::GetDisplayMode(int display_index, int mode_index, int &w, int &h, 
 		format = display_mode.format;
 	}
 	else
-	{
+	{*/
 		w = 0;
 		h = 0;
 		refresh_rate = 0;
 		format = 0;
-	}
+///	}
+
 	return 0;
 }
 
@@ -2628,22 +2588,22 @@ void C64Class::SetFullscreenDisplayMode(int display_index, int mode_index)
 	if(display_index >= MAX_VIDEO_DISPLAYS || mode_index < 0)
 		return;
 
-	SDL_DisplayMode display_mode;
+///	SDL_DisplayMode display_mode;
 
-	if(0 == SDL_GetDisplayMode(display_index, mode_index, &display_mode))
+///	if(0 == SDL_GetDisplayMode(display_index, mode_index, &display_mode))
 	{
-		fullscreen_display_mode[display_index] = display_mode;
+///		fullscreen_display_mode[display_index] = display_mode;
 	}
 
 	//cout << "SetDisplayMode: " << display_index << ";" << mode_index << endl;
 }
 
-bool C64Class::LoadTapeImage(FILE *file, int typ)
+bool C64Class::LoadTapeImage(FIL *file, int typ)
 {
 	return tape->LoadTapeImage(file, typ);
 }
 
-bool C64Class::RecordTapeImage(FILE *file)
+bool C64Class::RecordTapeImage(FIL *file)
 {
 	return tape->RecordTapeImage(file);
 }
@@ -2708,15 +2668,15 @@ void C64Class::EnableWarpMode(bool enabled)
     if(warp_mode)
     {
         // WarpMode aktivieren
-        SDL_PauseAudioDevice(audio_dev, 1);     // Audiostream pausieren
+///        SDL_PauseAudioDevice(audio_dev, 1);     // Audiostream pausieren
         warp_thread_end = false;
-        warp_thread = SDL_CreateThread(SDLThreadWarp,"WarpThread",this);
+///        warp_thread = SDL_CreateThread(SDLThreadWarp,"WarpThread",this);
     }
     else
     {
         // WarpMode deaktivieren
 		warp_thread_end = true;
-        SDL_PauseAudioDevice(audio_dev, 0);     // Audiostream wieder starten
+///        SDL_PauseAudioDevice(audio_dev, 0);     // Audiostream wieder starten
 	}
 }
 
@@ -2761,7 +2721,7 @@ int SDLThreadLoad(void *userdat)
 }
 
 // ret 0=OK 1=nicht unterstütztes Format 2=D64 n.IO 3=G64 n.IO 4=OK nur es war ein CRT
-int C64Class::LoadAutoRun(uint8_t floppy_nr, FILE *file, const char *filename, int typ)
+int C64Class::LoadAutoRun(uint8_t floppy_nr, FIL *file, const char *filename, int typ)
 {
 	switch(typ)
 	{
@@ -2853,7 +2813,7 @@ int C64Class::LoadAutoRun(uint8_t floppy_nr, FILE *file, const char *filename, i
     return 1;
 }
 
-int C64Class::LoadPRG(FILE *file, const char *filename, int typ, uint16_t *return_start_address)
+int C64Class::LoadPRG(FIL *file, const char *filename, int typ, uint16_t *return_start_address)
 {
     uint8_t *RAM = mmu->GetRAMPointer();
     char str00[256];
@@ -2915,7 +2875,7 @@ int C64Class::LoadPRG(FILE *file, const char *filename, int typ, uint16_t *retur
 		reading_bytes = fread(signature,1,32,file);
 		if(reading_bytes != 32)
 		{
-            std::cout << "Error T64 0x02" << std::endl;
+            logMsg("Error T64 0x02");
 			fclose(file);
 			file = nullptr;
 			return 0x02;
@@ -3025,7 +2985,7 @@ int C64Class::LoadPRG(FILE *file, const char *filename, int typ, uint16_t *retur
     return 0x02;
 }
 
-int C64Class::LoadCRT(FILE *file)
+int C64Class::LoadCRT(FIL *file)
 {
     reu->Remove();
     geo->Remove();
@@ -3049,7 +3009,7 @@ void C64Class::RemoveCRT()
     HardReset();
 }
 
-int C64Class::CreateNewEasyFlashImage(FILE *file, const char *crt_name)
+int C64Class::CreateNewEasyFlashImage(FIL *file, const char *crt_name)
 {
 	return crt->CreateNewEasyFlashImage(file, crt_name);
 }
@@ -3242,7 +3202,7 @@ void C64Class::GetIECStatus(IEC_STRUCT *iec)
 
 bool C64Class::StartDebugLogging(const char *filename)
 {
-    debug_logging_file = fopen (filename, "w");
+    debug_logging_file = fopen (filename, FA_WRITE | FA_CREATE_ALWAYS);
     if (debug_logging_file == nullptr)
     {
         return false;
@@ -3262,7 +3222,7 @@ void C64Class::StopDebugLogging()
     }
 }
 
-int C64Class::Disassemble(FILE* file, uint16_t pc, bool line_draw)
+int C64Class::Disassemble(FIL* file, uint16_t pc, bool line_draw)
 {
     static char output[50]; output[0] = 0;
     static char address[7]; address[0] = 0;
@@ -3371,13 +3331,14 @@ int C64Class::Disassemble(FILE* file, uint16_t pc, bool line_draw)
         break;
     }
 
-    sprintf(output, "%s%s%s%s", address, memory, opcode, addressing);
-    fprintf(file, "%s\n", output);
+    sprintf(output, "%s%s%s%s\n", address, memory, opcode, addressing);
+    fwrite(output, 1, strlen(output), file);
 
     OPC /= 3;
     if(((OPC == 0x40) || (OPC == 0x60) || (OPC == 0x4C)) && (line_draw == true))
     {
-        fprintf(file, "------------------------------\n");
+        strcpy(output, "------------------------------\n");
+        fwrite(output, 1, strlen(output), file);
     }
 
     return pc;
@@ -3385,270 +3346,44 @@ int C64Class::Disassemble(FILE* file, uint16_t pc, bool line_draw)
 
 int C64Class::AddBreakGroup()
 {
-    if(breakgroup_count == MAX_BREAK_GROUP_NUM) return -1;
-
-    breakgroup[breakgroup_count] = new BREAK_GROUP;
-    memset(breakgroup[breakgroup_count],0,sizeof(BREAK_GROUP));
-    breakgroup[breakgroup_count]->iRAddressCount = 1;
-    breakgroup[breakgroup_count]->iWAddressCount = 1;
-    breakgroup[breakgroup_count]->iRZZyklus = 1;
-    breakgroup_count ++;
-    return breakgroup_count - 1;
+    return 0;
 }
 
 void C64Class::DelBreakGroup(int index)
 {
-    if(index >= breakgroup_count) return;
-    delete breakgroup[index];
-    breakgroup_count--;
-    for(int i = index; i < breakgroup_count; i++) breakgroup[i] = breakgroup[i+1];
-    UpdateBreakGroup();
 }
 
 BREAK_GROUP* C64Class::GetBreakGroup(int index)
 {
-    if(index >= breakgroup_count) return nullptr;
-    return breakgroup[index];
+    return 0;
 }
 
 void C64Class::UpdateBreakGroup()
 {
-    for(int i=0; i<= 0xffff; i++) breakpoints[i] = 0;
-    for(int i=0; i < breakgroup_count ; i++)
-    {
-        BREAK_GROUP* bg = breakgroup[i];
-        if(bg->Enable)
-        {
-            if(bg->bPC) breakpoints[bg->iPC] |= 1;
-            if(bg->bAC) breakpoints[bg->iAC] |= 2;
-            if(bg->bXR) breakpoints[bg->iXR] |= 4;
-            if(bg->bYR) breakpoints[bg->iYR] |= 8;
-
-            if(bg->bRAddress)
-            {
-                uint16_t address = bg->iRAddress;
-                for(int j=0; j<bg->iRAddressCount; j++)
-                    breakpoints[address++] |= 16;
-            }
-
-            if(bg->bWAddress)
-            {
-                uint16_t address = bg->iWAddress;
-                for(int j=0; j<bg->iWAddressCount; j++)
-                    breakpoints[address++] |= 32;
-            }
-
-            if(bg->bRWert) breakpoints[bg->iRWert] |= 64;
-            if(bg->bWWert) breakpoints[bg->iWWert] |= 128;
-            if(bg->bRZ) breakpoints[bg->iRZ] |= 256;
-            if(bg->bRZZyklus) breakpoints[bg->iRZZyklus] |= 512;
-        }
-    }
-
-    for(int i=0;i<MAX_FLOPPY_NUM;i++)
-    {
-        if(floppy[i]->GetEnableFloppy())
-        {
-            floppy[i]->UpdateBreakGroup();
-        }
-    }
 }
 
 void C64Class::DeleteAllBreakGroups()
 {
-    for(int i=0;i<breakgroup_count;i++)
-    {
-        delete breakgroup[i];
-    }
-    breakgroup_count = 0;
-    UpdateBreakGroup();
 }
 
 int C64Class::GetBreakGroupCount()
 {
-    return breakgroup_count;
+    return 0;
 }
 
 int C64Class::LoadBreakGroups(const char *filename)
 {
-    FILE *file;
-    char Kennung[10];
-    uint8_t Version;
-    uint8_t Groupanzahl;
-    size_t reading_elements;
-
-    DeleteAllBreakGroups();
-
-    file = fopen (filename, "rb");
-    if (file == nullptr)
-    {
-            /// Datei konnte nicht geöffnet werden ///
-            return -1;
-    }
-
-    /// Kennung ///
-    reading_elements = fread(Kennung,sizeof(Kennung),1,file);
-
-    if(0 != strcmp("EMU64_BPT",Kennung))
-    {
-        /// Kein Emu64 Format ///
-        fclose(file);
-        return -2;
-    }
-
-    /// Version ///
-    reading_elements = fread(&Version,sizeof(Version),1,file);
-
-    switch(Version)
-    {
-    case 1:
-        /// Groupanzahl ///
-        reading_elements = fread(&Groupanzahl,sizeof(Groupanzahl),1,file);
-        if(reading_elements != 1)
-            return -5;
-
-        if(Groupanzahl == 0) return -4;
-
-        /// Groups ///
-        for(int ii=0;ii<Groupanzahl;ii++)
-        {
-            int i = AddBreakGroup();
-            reading_elements = fread(breakgroup[i]->Name,sizeof(breakgroup[i]->Name),1,file);
-            reading_elements = fread(&breakgroup[i]->Enable,sizeof(breakgroup[i]->Enable),1,file);
-            reading_elements = fread(&breakgroup[i]->bPC,sizeof(breakgroup[i]->bPC),1,file);
-            reading_elements = fread(&breakgroup[i]->iPC,sizeof(breakgroup[i]->iPC),1,file);
-            reading_elements = fread(&breakgroup[i]->bAC,sizeof(breakgroup[i]->bAC),1,file);
-            reading_elements = fread(&breakgroup[i]->iAC,sizeof(breakgroup[i]->iAC),1,file);
-            reading_elements = fread(&breakgroup[i]->bXR,sizeof(breakgroup[i]->bXR),1,file);
-            reading_elements = fread(&breakgroup[i]->iXR,sizeof(breakgroup[i]->iXR),1,file);
-            reading_elements = fread(&breakgroup[i]->bYR,sizeof(breakgroup[i]->bYR),1,file);
-            reading_elements = fread(&breakgroup[i]->iYR,sizeof(breakgroup[i]->iYR),1,file);
-            reading_elements = fread(&breakgroup[i]->bRAddress,sizeof(breakgroup[i]->bRAddress),1,file);
-            reading_elements = fread(&breakgroup[i]->iRAddress,sizeof(breakgroup[i]->iRAddress),1,file);
-            reading_elements = fread(&breakgroup[i]->bWAddress,sizeof(breakgroup[i]->bWAddress),1,file);
-            reading_elements = fread(&breakgroup[i]->iWAddress,sizeof(breakgroup[i]->iWAddress),1,file);
-            reading_elements = fread(&breakgroup[i]->bRWert,sizeof(breakgroup[i]->bRWert),1,file);
-            reading_elements = fread(&breakgroup[i]->iRWert,sizeof(breakgroup[i]->iRWert),1,file);
-            reading_elements = fread(&breakgroup[i]->bWWert,sizeof(breakgroup[i]->bWWert),1,file);
-            reading_elements = fread(&breakgroup[i]->iWWert,sizeof(breakgroup[i]->iWWert),1,file);
-            reading_elements = fread(&breakgroup[i]->bRZ,sizeof(breakgroup[i]->bRZ),1,file);
-            reading_elements = fread(&breakgroup[i]->iRZ,sizeof(breakgroup[i]->iRZ),1,file);
-            reading_elements = fread(&breakgroup[i]->bRZZyklus,sizeof(breakgroup[i]->bRZZyklus),1,file);
-            reading_elements = fread(&breakgroup[i]->iRZZyklus,sizeof(breakgroup[i]->iRZZyklus),1,file);
-
-            // version 2 compatiblity
-            breakgroup[i]->iRAddressCount = 1;
-            breakgroup[i]->iWAddressCount = 1;
-        }
-        break;
-
-    case 2:
-        /// ChangeLog
-        /// added iRAddressCount
-        /// added iWAddressCount
-
-        /// Groupanzahl ///
-        reading_elements = fread(&Groupanzahl,sizeof(Groupanzahl),1,file);
-        if(reading_elements != 1)
-            return -5;
-
-        if(Groupanzahl == 0) return -4;
-
-        /// Groups ///
-        for(int ii=0;ii<Groupanzahl;ii++)
-        {
-            int i = AddBreakGroup();
-            reading_elements = fread(breakgroup[i]->Name,sizeof(breakgroup[i]->Name),1,file);
-            reading_elements = fread(&breakgroup[i]->Enable,sizeof(breakgroup[i]->Enable),1,file);
-            reading_elements = fread(&breakgroup[i]->bPC,sizeof(breakgroup[i]->bPC),1,file);
-            reading_elements = fread(&breakgroup[i]->iPC,sizeof(breakgroup[i]->iPC),1,file);
-            reading_elements = fread(&breakgroup[i]->bAC,sizeof(breakgroup[i]->bAC),1,file);
-            reading_elements = fread(&breakgroup[i]->iAC,sizeof(breakgroup[i]->iAC),1,file);
-            reading_elements = fread(&breakgroup[i]->bXR,sizeof(breakgroup[i]->bXR),1,file);
-            reading_elements = fread(&breakgroup[i]->iXR,sizeof(breakgroup[i]->iXR),1,file);
-            reading_elements = fread(&breakgroup[i]->bYR,sizeof(breakgroup[i]->bYR),1,file);
-            reading_elements = fread(&breakgroup[i]->iYR,sizeof(breakgroup[i]->iYR),1,file);
-            reading_elements = fread(&breakgroup[i]->bRAddress,sizeof(breakgroup[i]->bRAddress),1,file);
-            reading_elements = fread(&breakgroup[i]->iRAddress,sizeof(breakgroup[i]->iRAddress),1,file);
-            reading_elements = fread(&breakgroup[i]->iRAddressCount,sizeof(breakgroup[i]->iRAddressCount),1,file);
-            reading_elements = fread(&breakgroup[i]->bWAddress,sizeof(breakgroup[i]->bWAddress),1,file);
-            reading_elements = fread(&breakgroup[i]->iWAddress,sizeof(breakgroup[i]->iWAddress),1,file);
-            reading_elements = fread(&breakgroup[i]->iWAddressCount,sizeof(breakgroup[i]->iWAddressCount),1,file);
-            reading_elements = fread(&breakgroup[i]->bRWert,sizeof(breakgroup[i]->bRWert),1,file);
-            reading_elements = fread(&breakgroup[i]->iRWert,sizeof(breakgroup[i]->iRWert),1,file);
-            reading_elements = fread(&breakgroup[i]->bWWert,sizeof(breakgroup[i]->bWWert),1,file);
-            reading_elements = fread(&breakgroup[i]->iWWert,sizeof(breakgroup[i]->iWWert),1,file);
-            reading_elements = fread(&breakgroup[i]->bRZ,sizeof(breakgroup[i]->bRZ),1,file);
-            reading_elements = fread(&breakgroup[i]->iRZ,sizeof(breakgroup[i]->iRZ),1,file);
-            reading_elements = fread(&breakgroup[i]->bRZZyklus,sizeof(breakgroup[i]->bRZZyklus),1,file);
-            reading_elements = fread(&breakgroup[i]->iRZZyklus,sizeof(breakgroup[i]->iRZZyklus),1,file);
-        }
-        break;
-
-    default:
-        return -3;
-    }
-
     return 0;
 }
 
 bool C64Class::SaveBreakGroups(const char *filename)
 {
-    FILE *file;
-    char Kennung[]  = "EMU64_BPT";
-    uint8_t Version    = 2;
-
-    file = fopen (filename, "wb");
-    if (file == nullptr)
-    {
-            return false;
-    }
-
-    /// Kennung ///
-    fwrite(Kennung,sizeof(Kennung),1,file);
-
-    /// Version ///
-    fwrite(&Version,sizeof(Version),1,file);
-
-    /// Groupanzahl ///
-    fwrite(&breakgroup_count,sizeof(breakgroup_count),1,file);
-
-    /// Groups ///
-    for(int i=0;i<breakgroup_count;i++)
-    {
-        fwrite(breakgroup[i]->Name,sizeof(breakgroup[i]->Name),1,file);
-        fwrite(&breakgroup[i]->Enable,sizeof(breakgroup[i]->Enable),1,file);
-        fwrite(&breakgroup[i]->bPC,sizeof(breakgroup[i]->bPC),1,file);
-        fwrite(&breakgroup[i]->iPC,sizeof(breakgroup[i]->iPC),1,file);
-        fwrite(&breakgroup[i]->bAC,sizeof(breakgroup[i]->bAC),1,file);
-        fwrite(&breakgroup[i]->iAC,sizeof(breakgroup[i]->iAC),1,file);
-        fwrite(&breakgroup[i]->bXR,sizeof(breakgroup[i]->bXR),1,file);
-        fwrite(&breakgroup[i]->iXR,sizeof(breakgroup[i]->iXR),1,file);
-        fwrite(&breakgroup[i]->bYR,sizeof(breakgroup[i]->bYR),1,file);
-        fwrite(&breakgroup[i]->iYR,sizeof(breakgroup[i]->iYR),1,file);
-        fwrite(&breakgroup[i]->bRAddress,sizeof(breakgroup[i]->bRAddress),1,file);
-        fwrite(&breakgroup[i]->iRAddress,sizeof(breakgroup[i]->iRAddress),1,file);
-        fwrite(&breakgroup[i]->iRAddressCount,sizeof(breakgroup[i]->iRAddressCount),1,file);
-        fwrite(&breakgroup[i]->bWAddress,sizeof(breakgroup[i]->bWAddress),1,file);
-        fwrite(&breakgroup[i]->iWAddress,sizeof(breakgroup[i]->iWAddress),1,file);
-        fwrite(&breakgroup[i]->iWAddressCount,sizeof(breakgroup[i]->iWAddressCount),1,file);
-        fwrite(&breakgroup[i]->bRWert,sizeof(breakgroup[i]->bRWert),1,file);
-        fwrite(&breakgroup[i]->iRWert,sizeof(breakgroup[i]->iRWert),1,file);
-        fwrite(&breakgroup[i]->bWWert,sizeof(breakgroup[i]->bWWert),1,file);
-        fwrite(&breakgroup[i]->iWWert,sizeof(breakgroup[i]->iWWert),1,file);
-        fwrite(&breakgroup[i]->bRZ,sizeof(breakgroup[i]->bRZ),1,file);
-        fwrite(&breakgroup[i]->iRZ,sizeof(breakgroup[i]->iRZ),1,file);
-        fwrite(&breakgroup[i]->bRZZyklus,sizeof(breakgroup[i]->bRZZyklus),1,file);
-        fwrite(&breakgroup[i]->iRZZyklus,sizeof(breakgroup[i]->iRZZyklus),1,file);
-    }
-
-    fclose(file);
     return true;
 }
 
 bool C64Class::ExportPRG(const char *filename, uint16_t start_adresse, uint16_t end_adresse, int source)
 {
-    FILE *file;
+    FIL *file;
     uint8_t *RAM;
 
     if(source > 0)
@@ -3659,7 +3394,7 @@ bool C64Class::ExportPRG(const char *filename, uint16_t start_adresse, uint16_t 
 
     if(RAM == nullptr) return false;
 
-    file = fopen (filename, "wb");
+    file = fopen (filename, FA_WRITE | FA_CREATE_ALWAYS);
     if (file == nullptr)
     {
         return false;
@@ -3674,7 +3409,7 @@ bool C64Class::ExportPRG(const char *filename, uint16_t start_adresse, uint16_t 
 
 bool C64Class::ExportRAW(const char *filename, uint16_t start_adresse, uint16_t end_adresse, int source)
 {
-    FILE *file;
+    FIL *file;
     uint8_t *RAM;
 
     if(source > 0)
@@ -3685,7 +3420,7 @@ bool C64Class::ExportRAW(const char *filename, uint16_t start_adresse, uint16_t 
 
     if(RAM == nullptr) return false;
 
-    file = fopen (filename, "wb");
+    file = fopen (filename, FA_WRITE | FA_CREATE_ALWAYS);
     if (file == nullptr)
     {
         return false;
@@ -3698,9 +3433,9 @@ bool C64Class::ExportRAW(const char *filename, uint16_t start_adresse, uint16_t 
 
 bool C64Class::ExportASM(const char *filename, uint16_t start_adresse, uint16_t end_adresse, int source)
 {
-    FILE *file;
+    FIL *file;
 
-    file = fopen (filename, "w");
+    file = fopen (filename, FA_WRITE | FA_CREATE_ALWAYS);
     if (file == nullptr)
     {
         return false;
@@ -3726,13 +3461,13 @@ bool C64Class::ExportASM(const char *filename, uint16_t start_adresse, uint16_t 
         source_str = "Floppy #11";
         break;
     }
-
-    fprintf(file,"Disassembler Listing wurde mit Emu64 %s erzeugt\n",VERSION_STRING);
+/**
+    fprintf(file,"Disassembler Listing wurde mit Emu64 VVV erzeugt\n");
     fprintf(file,"-------------------------------------------------\n");
     fprintf(file,"Von: $%4.4X Bis: $%4.4X Quelle: %s",start_adresse,end_adresse,source_str);
     fprintf(file,"\n");
     fprintf(file,"\n");
-
+*/
     uint16_t pc = start_adresse;
     uint16_t pc_old;
 
@@ -3799,7 +3534,7 @@ void C64Class::SaveScreenshot()
 {
     if(!is_screenshot_enable) return;
 
-    std::cout << "Screenshot Nummer: " << screenshot_number << std::endl;
+///    std::cout << "Screenshot Nummer: " << screenshot_number << std::endl;
 
     switch (screenshot_format)
     {
@@ -3833,67 +3568,34 @@ void C64Class::SetExitScreenshot(const char *filename)
 
 const char* C64Class::GetAVVersion()
 {
-    return video_capture->GetAVVersion();
+    return 0;
 }
 
 bool C64Class::StartVideoRecord(const char *filename, int audio_bitrate, int video_bitrate)
 {
-    if(video_capture != nullptr)
-    {
-		c64_frequency_temp = c64_frequency;
-		c64_frequency = 982800;	// Auf genau 50 Hz stellen !!
-		SetC64Speed(c64_speed);
-
-        video_capture->SetAudioBitrate(audio_bitrate);
-        video_capture->SetVideoBitrate(video_bitrate);
-
-        return video_capture->StartCapture(filename, "mp4", current_c64_screen_width, current_c64_screen_height);
-    }
     return false;
 }
 
 void C64Class::SetPauseVideoRecord(bool status)
 {
-    video_capture->SetCapturePause(status);
 }
 
 void C64Class::StopVideoRecord()
 {
-    if(video_capture != nullptr)
-    {
-        video_capture->StopCapture();
-
-		c64_frequency = c64_frequency_temp;
-		SetC64Speed(c64_speed);
-    }
 }
 
 int C64Class::GetRecordedFrameCount()
 {
-    return video_capture->GetRecordedFrameCount();
+    return 0;
 }
 
 bool C64Class::StartIECDump(const char *filename)
 {
-    char VersionString[256];
-
-    sprintf(VersionString,"Emu64 Version %s",VERSION_STRING);
-
-    iec_export_vdc.SetVersionString(VersionString);
-    iec_export_vdc.SetTimeScaleString("989 ns");
-    iec_export_vdc.SetModuleString("IEC-BUS");
-
-    if(!iec_export_vdc.Open(filename)) return false;
-
-    iec_is_dumped = true;
-
     return true;
 }
 
 void C64Class::StopIECDump()
 {
-    iec_is_dumped = false;
-    iec_export_vdc.Close();
 }
 
 void C64Class::SetSIDVolume(float_t volume)
@@ -4035,7 +3737,7 @@ void C64Class::NextSystemCycle()
     cpu->Phi1();
 }
 
-uint16_t C64Class::DisAss(FILE *file, uint16_t PC, bool line_draw, int source)
+uint16_t C64Class::DisAss(FIL *file, uint16_t PC, bool line_draw, int source)
 {
     char Ausgabe[36];Ausgabe[0]=0;
     char Adresse[7];Adresse[0]=0;
@@ -4151,13 +3853,14 @@ uint16_t C64Class::DisAss(FILE *file, uint16_t PC, bool line_draw, int source)
         break;
     }
 
-    sprintf(Ausgabe,"%s%s%s%s",Adresse,Speicher,Opcode,Anhang);
-    fprintf(file,"%s\n",Ausgabe);
+    sprintf(Ausgabe,"%s%s%s%s\n",Adresse,Speicher,Opcode,Anhang);
+    fwrite(Ausgabe, 1, strlen(Ausgabe), file);
 
     OPC/=3;
     if(((OPC==0x40)||(OPC==0x60)||(OPC==0x4C)) && (line_draw == true))
     {
-        fprintf(file,"------------------------------\n");
+        strcpy(Ausgabe, "------------------------------\n");
+        fwrite(Ausgabe, 1, strlen(Ausgabe), file);
     }
 
     return PC;
@@ -4165,113 +3868,6 @@ uint16_t C64Class::DisAss(FILE *file, uint16_t PC, bool line_draw, int source)
 
 bool C64Class::CheckBreakpoints()
 {
-    int BreaksIO = 0;
-
-    for (int i=0;i<breakgroup_count;i++)
-    {
-        BREAK_GROUP* bg = breakgroup[i];
-        int count1 = 0;
-        int count2 = 0;
-
-        if(bg->Enable)
-        {
-            if(bg->bPC)
-            {
-                count1++;
-                if((break_status&1) && (break_values[0] == bg->iPC)) count2++;
-            }
-            if(bg->bAC)
-            {
-                count1++;
-                if((break_status&2) && (break_values[1] == bg->iAC)) count2++;
-            }
-            if(bg->bXR)
-            {
-                count1++;
-                if((break_status&4) && (break_values[2] == bg->iXR)) count2++;
-            }
-            if(bg->bYR)
-            {
-                count1++;
-                if((break_status&8) && (break_values[3] == bg->iYR)) count2++;
-            }
-
-            if(bg->bRAddress)
-            {
-                count1++;
-                //if((break_status & 16) && (break_values[4] == bg->iRAddress)) count2++;
-                if((break_status & 16) && (break_values[4] >= bg->iRAddress) && (break_values[4] <= (bg->iRAddress + bg->iRAddressCount))) count2++;
-            }
-
-            if(bg->bWAddress)
-            {
-                count1++;
-                if((break_status & 32) && (break_values[5] >= bg->iWAddress) && (break_values[5] <= (bg->iWAddress + bg->iWAddressCount))) count2++;
-            }
-
-            if(bg->bRWert)
-            {
-                count1++;
-                if((break_status&64) && (break_values[6] == bg->iRWert)) count2++;
-            }
-            if(bg->bWWert)
-            {
-                count1++;
-                if((break_status&128) && (break_values[7] == bg->iWWert)) count2++;
-            }
-            if(bg->bRZ)
-            {
-                count1++;
-                if((break_status&256) && (break_values[8] == bg->iRZ)) count2++;
-            }
-            if(bg->bRZZyklus)
-            {
-                count1++;
-                if((break_status&512) && (break_values[9] == bg->iRZZyklus)) count2++;
-            }
-        }
-        if((count1 == count2) && (count1 > 0))
-        {
-            breakgroup[i]->bTrue = true;
-            BreaksIO++;
-        }
-        else breakgroup[i]->bTrue = false;
-    }
-    break_status = 0;
-
-    floppy_found_breakpoint = false;
-    int floppy_break = 0;
-    for(int i=0; i<MAX_FLOPPY_NUM; i++)
-    {
-        if(floppy[i]->GetEnableFloppy())
-        {
-            if(floppy[i]->CheckBreakpoints()) floppy_break |= 1;
-        }
-    }
-
-    if((BreaksIO > 0) || (floppy_break == 1))
-    {
-        if(!debug_mode)
-        {
-            debug_mode = true;
-            debug_animation = false;
-            one_cycle = false;
-            one_opcode = false;
-            sid1->SoundOutputEnable = false;
-            sid2->SoundOutputEnable = false;
-            for(int i=0; i<MAX_FLOPPY_NUM; i++) floppy[i]->SetEnableFloppySound(false);
-            if(BreakpointProc != nullptr) BreakpointProc();
-            return true;
-        }
-        else
-        {
-            debug_animation = false;
-            one_opcode = false;
-            one_cycle = false;
-            if(BreakpointProc != nullptr) BreakpointProc();
-            return true;
-        }
-    }
     return false;
 }
 
@@ -4290,25 +3886,6 @@ void C64Class::WriteSidIO(uint16_t address, uint8_t value)
 
 uint8_t C64Class::ReadSidIO(uint16_t address)
 {
-    /*
-    if(StereoEnable)
-    {
-        if(Sid2Adresse == 0xD400)
-        {
-            return sid1_ReadIO(adresse);
-        }
-        else
-        {
-            if((adresse && 0x001F) == 0x00) return sid1_ReadIO(adresse);
-            else return sid2_ReadIO(adresse);
-        }
-    }
-    else
-    {
-        return sid1_ReadIO(adresse);
-    }
-    */
-
     return sid1->ReadIO(address);
 }
 
@@ -4448,7 +4025,7 @@ void C64Class::IncMouseHiddenCounter()
         if(mouse_hide_counter >= mouse_hide_time)
         {
             mouse_is_hidden = true;
-            SDL_ShowCursor(false);
+///            SDL_ShowCursor(false);
         }
     }
 }
@@ -4471,7 +4048,7 @@ bool C64Class::GetRecKeyMapStatus()
 
 C64_KEYS* C64Class::GetC64KeyTable()
 {
-    return c64_key_table;
+    return 0;///TODO:c64_key_table;
 }
 
 const char** C64Class::GetC64KeyNameTable()
@@ -4493,7 +4070,7 @@ void C64Class::OpenSDLJoystick()
     {
         AbbruchCounter--;
     }
-
+/***
     if(sdl_joystick_is_open)
     {
         sdl_joystick_is_open = false;
@@ -4549,6 +4126,7 @@ void C64Class::OpenSDLJoystick()
             }
         }
     }
+    */
     sdl_joystick_stop_update = true;
 }
 
@@ -4564,12 +4142,14 @@ void C64Class::CloseSDLJoystick()
     if(sdl_joystick_is_open)
     {
         sdl_joystick_is_open = false;
+        /**
         SDL_ClearError();
         SDL_QuitSubSystem(SDL_INIT_JOYSTICK);
         LogText(">> SDL Subsystem Joystick wurde geschlossen\n");
         LogText("<< SDL_Error: ");
         LogText(SDL_GetError());
         LogText("\n");
+        */
     }
     sdl_joystick_stop_update = true;
 }
@@ -4650,6 +4230,16 @@ void C64Class::SwapRBSurface(SDL_Surface *surface)
     SDL_UnlockSurface(surface);
 }
 */
+
+extern "C" {
+#include "vga.h"
+}
+
+void C64Class::log(const char* t)
+{
+    logMsg((char*)t);
+}
+
 void C64Class::DebugLogging()
 {
     static REG_STRUCT  cpuReg;
@@ -4657,13 +4247,13 @@ void C64Class::DebugLogging()
 
     cpu->GetRegister(&cpuReg);
 
-    fprintf(debug_logging_file, "\nPC   AC XR YR SP SR NV/BDIZC IRQ  NMI\n");
-    fprintf(debug_logging_file, "%4.4X %2.2X %2.2X %2.2X %2.2X %2.2X ", cpuReg.pc, cpuReg.ac, cpuReg.xr, cpuReg.yr, cpuReg.sp, cpuReg.sr);
+///    fprintf(debug_logging_file, "\nPC   AC XR YR SP SR NV/BDIZC IRQ  NMI\n");
+///    fprintf(debug_logging_file, "%4.4X %2.2X %2.2X %2.2X %2.2X %2.2X ", cpuReg.pc, cpuReg.ac, cpuReg.xr, cpuReg.yr, cpuReg.sp, cpuReg.sr);
 
-    for(int i=7;i>=0;--i)
-        fprintf(debug_logging_file, "%d",((cpuReg.sr >> i)&1));
+///    for(int i=7;i>=0;--i)
+///        fprintf(debug_logging_file, "%d",((cpuReg.sr >> i)&1));
 
-    fprintf(debug_logging_file, " %4.4X %4.4X\n", cpuReg._0314, cpuReg._0318);
-    fprintf(debug_logging_file, "--------------------------------------\n");
+///    fprintf(debug_logging_file, " %4.4X %4.4X\n", cpuReg._0314, cpuReg._0318);
+///    fprintf(debug_logging_file, "--------------------------------------\n");
     Disassemble(debug_logging_file, cpuReg.pc, false);
 }

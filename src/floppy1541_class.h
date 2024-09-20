@@ -18,17 +18,17 @@
 
 #include <math.h>
 #include <cstring>
-#include <fstream>
 #include <functional>
 
 #include "./mos6502_class.h"
 #include "./mos6522_class.h"
 #include "./structs.h"
+#include "fs.h"
 
 #define MAX_BREAK_GROUP_NUM 255
 
-#define D64_IMAGE_SIZE 174848
-#define G64_IMAGE_SIZE 665952
+#define D64_IMAGE_SIZE 16 /// 174848
+#define G64_IMAGE_SIZE 32 /// 665952
 
 #define DISK_CHANGE_STATE_COUNTS 4
 #define DISK_CHANGE_STATE_CYCLES 1000
@@ -41,7 +41,7 @@ public:
 
     /// Funktionen ///
 
-    Floppy1541(bool *reset, int samplerate = 0, int buffersize = 0, bool *floppy_found_breakpoint = nullptr);
+    Floppy1541(bool *reset, int samplerate = 0, int buffersize = 0);
     ~Floppy1541();
 
     void SetEnableFloppy(bool status);
@@ -51,7 +51,7 @@ public:
     void* GetSoundBuffer();
     void ZeroSoundBufferPos();
     void SetFloppySoundVolume(float_t volume);
-	bool LoadDiskImage(FILE *file, int typ);		// 0=D64 , 1=G64
+	bool LoadDiskImage(FIL *file, int typ);		// 0=D64 , 1=G64
     void UnLoadDiskImage();
     void SetC64IEC(uint8_t* port);
     void SetDeviceNumber(uint8_t number);
@@ -140,7 +140,7 @@ private:
     std::function<void(uint16_t, uint8_t)> WriteProcTbl[256];
 
     uint8_t RAM[0x800];   // 2KB
-    uint8_t ROM[0x4000];  // 16KB
+///    const uint8_t* ROM;//[0x4000];  // 16KB
 
     bool VIA1_IRQ;
     bool VIA2_IRQ;
@@ -156,7 +156,7 @@ private:
 
     #define             FileNameSize 1024
 
-	FILE *              image_file;
+	FIL *              image_file;
     int                 ImageTyp;
     uint8_t             AktGCRWert;
     static const int	NUM_TRACKS = 42;
@@ -218,7 +218,7 @@ private:
     // Bit 7 = Schreiben eines Wertes
     // Bit 8 = Beim erreichen einer bestommten Raster Zeile
     // Bit 9 = Beim erreichen eines Zyklus in einer Rasterzeile
-
+/***
     uint16_t        Breakpoints[0x10000];
     uint16_t        BreakWerte[16];
     uint16_t        BreakStatus;
@@ -226,7 +226,7 @@ private:
 
     uint8_t         breakgroup_count;
     BREAK_GROUP     *BreakGroup[MAX_BREAK_GROUP_NUM];
-
+*/
     ////////////////////////////////////////////////////////////
 };
 

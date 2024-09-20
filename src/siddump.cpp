@@ -40,7 +40,7 @@ bool SIDDumpClass::StartCapture(const char* filename)
     CycleCounter = 0;
     CycleCounts = 0;
 
-    CaptureFile = fopen (filename,"wb");
+    CaptureFile = fopen (filename,FA_WRITE | FA_CREATE_ALWAYS);
     if (CaptureFile == NULL)
     {
         return false;
@@ -122,7 +122,7 @@ bool SIDDumpClass::LoadDump(char* filename)
         delete Dump;
     }
 
-    PlayFile = fopen(filename, "rb");
+    PlayFile = fopen(filename, FA_READ);
     if (PlayFile == NULL)
     {
         return false;

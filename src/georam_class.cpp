@@ -13,6 +13,7 @@
 //////////////////////////////////////////////////
 
 #include "georam_class.h"
+#include "fs.h"
 
 GEORAMClass::GEORAMClass() :
     geo_ram_insert(false),
@@ -40,8 +41,8 @@ void GEORAMClass::Remove(void)
 int GEORAMClass::LoadRamImage(const char *filename)
 {
     /// load georam image ...
-    FILE* file;
-    file = fopen(filename, "rb");
+    FIL* file;
+    file = fopen(filename, FA_READ);
     if (file == NULL)
     {
         return 1;
@@ -95,8 +96,8 @@ int GEORAMClass::LoadRamImage(const char *filename)
 int GEORAMClass::SaveRamImage(const char *filename)
 {
     /// save georam image ...
-    FILE* file;
-    file = fopen(filename, "wb");
+    FIL* file;
+    file = fopen(filename, FA_WRITE | FA_CREATE_ALWAYS);
     if (file == NULL)
         return 1;
 

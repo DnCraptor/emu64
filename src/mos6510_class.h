@@ -60,11 +60,13 @@ public:
 						// Adresse wird es True
     unsigned short ResetReadyAdr;
     bool JAMFlag;
+    /**
     unsigned short  *BreakStatus;
     unsigned short  *Breakpoints;
     unsigned short  *BreakWerte;
     unsigned short  *History;
     unsigned char   *HistoryPointer;
+    */
 private:
     /// Funktionen ///
 
@@ -88,8 +90,9 @@ private:
     unsigned short  AktOpcodePC;
     bool            CpuWait;
     unsigned char   TMPByte;
-
+public:
     unsigned short  PC;
+private:
     unsigned char   AC;
     unsigned char   XR;
     unsigned char   YR;

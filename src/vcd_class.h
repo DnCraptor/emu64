@@ -55,7 +55,7 @@ private:
     bool wire_values[MAX_WIRES];
     char *wire_names[MAX_WIRES];
 
-    FILE *file;
+    FIL *file;
     bool isOpen;
 
     const char *version;

@@ -278,13 +278,13 @@ bool MOS6581_8085::OneZyklus(void)
     return ret;
 }
 
-bool MOS6581_8085::SaveFreez(FILE* File)
+bool MOS6581_8085::SaveFreez(FIL* File)
 {
     fwrite(IO,1,32,File);
     return true;
 }
 
-bool MOS6581_8085::LoadFreez(FILE *File,unsigned short Version)
+bool MOS6581_8085::LoadFreez(FIL *File,unsigned short Version)
 {
     switch(Version)
     {

@@ -82,7 +82,7 @@ void TAPE1530::SetC64Zyklen(float cycles_per_second)
     PlayFrequenzFaktor = 4294967296.0 / cycles_per_second;     // 2^32 / Samplerate;
 }
 
-bool TAPE1530::LoadTapeImage(FILE *file, int typ)
+bool TAPE1530::LoadTapeImage(FIL *file, int typ)
 {
 	if(file == nullptr)
 		return false;
@@ -133,7 +133,7 @@ bool TAPE1530::LoadTapeImage(FILE *file, int typ)
 		reading_bytes = fread (TapeBuffer,1,TapeBufferSize,file);
 		if(reading_bytes != TapeBufferSize)
 		{
-			std::cout << "Tapeimage ist defekt !" << std::endl << "Anzahl der Daten stimmt nicht mit der Anzahl im Tape Header überein." << std::endl;
+///			std::cout << "Tapeimage ist defekt !" << std::endl << "Anzahl der Daten stimmt nicht mit der Anzahl im Tape Header überein." << std::endl;
 			goto loaderror;
 		}
 
@@ -215,7 +215,7 @@ bool TAPE1530::LoadTapeImage(FILE *file, int typ)
     return false;
 }
 
-bool TAPE1530::RecordTapeImage(FILE *file)
+bool TAPE1530::RecordTapeImage(FIL *file)
 {
 	if(file == nullptr)
 		return false;

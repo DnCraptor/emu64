@@ -52,12 +52,13 @@ public:
     bool *ResetReady;               // Wird bei einem Reset False und beim erreichen einer
                                     // Adresse wird es True
     unsigned short  ResetReadyAdr;
+    /**
     unsigned short  *BreakStatus;
     unsigned short  *Breakpoints;
     unsigned short  *BreakWerte;
     unsigned short  *History;
     unsigned char   *HistoryPointer;
-
+*/
 private:
 
     /// Funktionen ///

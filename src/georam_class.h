@@ -16,7 +16,6 @@
 #define GEORAM_CLASS_H
 
 #include <inttypes.h>
-#include <fstream>
 
 // 512KiB, 1MiB, 2MiB, 4MiB
 

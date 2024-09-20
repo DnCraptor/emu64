@@ -16,10 +16,10 @@
 #ifndef REU_CLASS_H
 #define REU_CLASS_H
 
-#include <fstream>
 #include <functional>
 
 #include "./structs.h"
+#include "fs.h"
 
 class REUClass
 {
@@ -41,8 +41,8 @@ class REUClass
     void Reset(void);
     void OneZyklus(void);
 
-    bool SaveFreez(FILE *File);
-    bool LoadFreez(FILE *File,unsigned short Version);
+    bool SaveFreez(FIL *File);
+    bool LoadFreez(FIL *File,unsigned short Version);
 
     std::function<unsigned char(unsigned short)> *ReadProcTbl;
     std::function<void(unsigned short,unsigned char)> *WriteProcTbl;

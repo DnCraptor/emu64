@@ -74,8 +74,8 @@ class MOS6581_8085
     void ZeroSoundBufferPos();
     bool OneZyklus(void);
 
-    bool SaveFreez(FILE* File);
-    bool LoadFreez(FILE *File,unsigned short Version);
+    bool SaveFreez(FIL* File);
+    bool LoadFreez(FIL *File,unsigned short Version);
 
     void WriteIO(unsigned short adresse,unsigned char wert);
     unsigned char ReadIO(unsigned short adresse);

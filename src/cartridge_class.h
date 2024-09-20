@@ -16,7 +16,7 @@
 #define CARTRIDGE_CLASS_H
 
 #include <functional>
-#include <cstdio>
+#include "fs.h"
 
 #include "./structs.h"
 #include "./am29f040_class.h"
@@ -31,11 +31,11 @@ public:
     // Funktionen
     bool *GetFlash040Dirty(uint16_t nr);
     uint8_t* GetFlash040Byte(uint16_t nr);
-	int LoadCartridgeImage(FILE *file);
+	int LoadCartridgeImage(FIL *file);
     void RemoveCartridgeImage();
-	int CreateNewEasyFlashImage(FILE *file, const char* crt_name);
-	int WriteEasyFlashImage(FILE *file, CARTRIDGE_INFO_STRUCT *cartridge_info);
-	int GetCartridgeInfo(FILE *file, CARTRIDGE_INFO_STRUCT *crt_info);
+	int CreateNewEasyFlashImage(FIL *file, const char* crt_name);
+	int WriteEasyFlashImage(FIL *file, CARTRIDGE_INFO_STRUCT *cartridge_info);
+	int GetCartridgeInfo(FIL *file, CARTRIDGE_INFO_STRUCT *crt_info);
     void SetEasyFlashJumper(bool enable);
     void Reset();
     void Freeze();

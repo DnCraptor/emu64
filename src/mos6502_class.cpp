@@ -214,34 +214,11 @@ inline void MOS6502::SET_OVERFLOW(bool status)
 inline unsigned char MOS6502::Read(unsigned short adresse)
 {
     unsigned char wert = ReadProcTbl[(adresse)>>8](adresse);
-
-    if(Breakpoints[adresse] & 16)
-    {
-        *BreakStatus |=16;
-        BreakWerte[4] = adresse;
-    }
-
-    if(Breakpoints[wert] & 64)
-    {
-        *BreakStatus |=64;
-        BreakWerte[6] = wert;
-    }
     return wert;
 }
 
 inline void MOS6502::Write(unsigned short adresse, unsigned char wert)
 {
-    if(Breakpoints[adresse] & 32)
-    {
-        *BreakStatus |=32;
-        BreakWerte[5] = adresse;
-    }
-
-    if(Breakpoints[wert] & 128)
-    {
-        *BreakStatus |=128;
-        BreakWerte[7] = wert;
-    }
     WriteProcTbl[(adresse)>>8](adresse,wert);
 }
 
@@ -295,9 +272,6 @@ bool MOS6502::OneZyklus(void)
             irq_delay = false;
             SR = irq_delay_sr_value;
         }
-
-        *HistoryPointer = *HistoryPointer+1;
-        History[*HistoryPointer] = AktOpcodePC;
 
         PC++;
 
@@ -1401,26 +1375,6 @@ bool MOS6502::OneZyklus(void)
         if(ResetReadyAdr == PC) *ResetReady = true;
 
         AktOpcodePC = PC;
-        if(Breakpoints[PC] & 1)
-        {
-                *BreakStatus |=1;
-                BreakWerte[0] = PC;
-        }
-        if(Breakpoints[AC] & 2)
-        {
-                *BreakStatus |=2;
-                BreakWerte[1] = AC;
-        }
-        if(Breakpoints[XR] & 4)
-        {
-                *BreakStatus |=4;
-                BreakWerte[2] = XR;
-        }
-        if(Breakpoints[YR] & 8)
-        {
-                *BreakStatus |=8;
-                BreakWerte[3] = YR;
-        }
 
         if(ResetReadyAdr == PC)
         {

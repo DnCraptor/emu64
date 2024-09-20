@@ -1,9 +1,10 @@
 #pragma once
 
 #include "strings.h"
-#include "stdio.h"
+///#include "stdio.h"
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #define KBD_CLOCK_PIN    (0)
 #define KBD_DATA_PIN    (1)
