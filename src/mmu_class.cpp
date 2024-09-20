@@ -15,8 +15,14 @@
 #include "mmu_class.h"
 #include <fstream>
 
+extern "C" {
+#include "roms.h"
+#include "vga.h"
+}
+
 MMU::MMU(void)
 {
+logMsg("0");
     for(int i=0;i<0x10000;i++) RAM[i]=0;
 
     VicIOWriteProc = std::bind(&MMU::WriteRam,this,std::placeholders::_1,std::placeholders::_2);
@@ -53,6 +59,7 @@ unsigned char* MMU::GetFarbramPointer(void)
 
 bool MMU::LoadKernalRom(const char* filename)
 {
+        /**
 	FILE *file;
         file = fopen(filename, "rb");
 	if (file == NULL) 
@@ -66,12 +73,13 @@ bool MMU::LoadKernalRom(const char* filename)
 	}
 
 	fclose(file);
-
+*/
 	return true;
 }
 
 bool MMU::LoadBasicRom(const char* filename)
 {
+        /**
 	FILE *file;
         file = fopen(filename, "rb");
 	if (file == NULL) 
@@ -85,12 +93,13 @@ bool MMU::LoadBasicRom(const char* filename)
 	}
 
 	fclose(file);
-
+*/
 	return true;
 }
 
 bool MMU::LoadCharRom(const char* filename)
 {
+        /**
 	FILE *file;
         file = fopen (filename, "rb");
 	if (file == NULL) 
@@ -104,7 +113,7 @@ bool MMU::LoadCharRom(const char* filename)
 	}
 
 	fclose(file);
-
+*/
 	return true;
 }
 
@@ -953,17 +962,17 @@ void MMU::WriteZeroPage(unsigned short adresse, unsigned char wert)
 
 unsigned char MMU::ReadBasicRom(unsigned short adresse)
 {
-        return BASIC_ROM[adresse-0xA000];
+        return rom_basic[adresse-0xA000];
 }
 
 unsigned char MMU::ReadKernalRom(unsigned short adresse)
 {
-        return KERNAL_ROM[adresse-0xE000];
+        return rom_kernal[adresse-0xE000];
 }
 
 unsigned char MMU::ReadCharRom(unsigned short adresse)
 {
-        return CHAR_ROM[adresse-0xD000];
+        return rom_characters[adresse-0xD000];
 }
 
 unsigned char MMU::ReadRam(unsigned short adresse)
@@ -1023,7 +1032,7 @@ unsigned char MMU::ReadVicCharRomBank0(unsigned short adresse)
                 *EasyFlashDirty1 = false;
                 return *EasyFlashByte1;
 	}
-        return CHAR_ROM[adresse-0x1000];
+        return rom_characters[adresse-0x1000];
 }
 
 unsigned char MMU::ReadVicCharRomBank2(unsigned short adresse)
@@ -1033,7 +1042,7 @@ unsigned char MMU::ReadVicCharRomBank2(unsigned short adresse)
                 *EasyFlashDirty2 = false;
                 return *EasyFlashByte2;
 	}
-        return CHAR_ROM[adresse-0x9000];
+        return rom_characters[adresse-0x9000];
 }
 
 unsigned char MMU::ReadVicRam(unsigned short adresse)

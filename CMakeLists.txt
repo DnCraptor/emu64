@@ -211,8 +211,8 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         #BOOT_DEBUG_ACC=0xA0000
 
         # select onr of the folowing:
-        #SWAP_BLOCK_1k
-        SWAP_BLOCK_2k
+        SWAP_BLOCK_1k
+        #SWAP_BLOCK_2k
         #SWAP_BLOCK_4k
         TOTAL_VIRTUAL_MEMORY_KBS=65536
 

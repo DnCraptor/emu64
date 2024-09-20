@@ -114,10 +114,10 @@ private:
 
     /// Variablen ///
     unsigned char RAM[0x10000];			// 64KB
-    unsigned char BASIC_ROM[0x2000];		// 8KB ab 0xA000
-    unsigned char CHAR_ROM[0x1000];		// 4KB ab 0xD000
+///    unsigned char BASIC_ROM[0x2000];	// 8KB ab 0xA000
+///    unsigned char CHAR_ROM[0x1000];		// 4KB ab 0xD000
     unsigned char FARB_RAM[0x0400];		// 1KB ab 0xD800
-    unsigned char KERNAL_ROM[0x2000];		// 8KB ab 0xE000
+///    unsigned char KERNAL_ROM[0x2000];	// 8KB ab 0xE000
 
     /// AktMemoryMap Visuall ///
     unsigned char MapReadSource[0x100];

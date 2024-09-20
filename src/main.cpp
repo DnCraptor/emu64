@@ -125,6 +125,24 @@ void __scratch_y("second_core") second_core() {
 
 static FATFS fs;
 
+#include "./video_crt_class.h"
+#include "./mmu_class.h"
+#include "./mos6510_class.h"
+#include "./mos6569_class.h"
+#include "./mos6581_8085_class.h"
+#include "./mos6526_class.h"
+#include "./cartridge_class.h"
+#include "./reu_class.h"
+#include "./georam_class.h"
+#include "./floppy1541_class.h"
+#include "./tape1530_class.h"
+#include "./cpu_info.h"
+#include "./vcd_class.h"
+
+#include <functional>
+
+#define C64Takt 985248  // 50,124542Hz (Original C64 PAL)
+
 int main() {
 #if (OVERCLOCKING > 270)
     hw_set_bits(&vreg_and_chip_reset_hw->vreg, VREG_AND_CHIP_RESET_VREG_VSEL_BITS);
@@ -177,6 +195,31 @@ int main() {
         logMsg((char *)"Mo PSRAM or SD CARD available. Only 160Kb RAM will be usable...");
         sleep_ms(3000);
     }
+
+    MMU* mmu = new MMU();
+logMsg("1");
+    MOS6510* cpu = new MOS6510();
+logMsg("4");
+    VICII* vic = new VICII();
+logMsg("5");
+    int sid_ret_error;
+logMsg("6");
+    MOS6581_8085* sid1 = new MOS6581_8085(0,44100,16,&sid_ret_error);
+logMsg("7");
+    MOS6581_8085* sid2 = new MOS6581_8085(1,44100,16,&sid_ret_error);
+logMsg("8");
+    MOS6526* cia1 = new MOS6526(0);
+logMsg("9");
+    MOS6526* cia2 = new MOS6526(1);
+logMsg("10");
+    CartridgeClass* crt = new CartridgeClass();
+logMsg("11");
+    REUClass* reu = new REUClass();
+logMsg("12");
+    GEORAMClass* geo = new GEORAMClass();
+logMsg("13");
+    TAPE1530* tape = new TAPE1530(44100,16,C64Takt);
+logMsg("14");
 
 //    reset86();
     while (runing) {

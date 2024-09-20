@@ -541,13 +541,13 @@ void logFile(char* msg);
 
 extern volatile bool manager_started;
 void logMsg(char* msg) {
-    return;
+///    return;
 #if BOOT_DEBUG
     { char tmp[85]; sprintf(tmp, "%s\n", msg); logFile(tmp); }
 #else
-    printf("%s\n", msg);
+///    printf("%s\n", msg);
 #endif
-    if (graphics_mode != TEXTMODE_80x30 || manager_started) {
+    if (graphics_mode != TEXTMODE_80x30) {
         // log in text mode only
         return;
     }
