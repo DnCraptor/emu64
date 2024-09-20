@@ -128,8 +128,6 @@ static FATFS fs;
 
 #include "c64_class.h"
 
-static C64Class _c64;
-
 int main() {
 #if (OVERCLOCKING > 270)
     hw_set_bits(&vreg_and_chip_reset_hw->vreg, VREG_AND_CHIP_RESET_VREG_VSEL_BITS);
@@ -180,6 +178,11 @@ int main() {
         logMsg((char *)"Mo PSRAM or SD CARD available. Only 160Kb RAM will be usable...");
         sleep_ms(3000);
     }
+    logMsg("1");
+static C64Class _c64;
+    logMsg("2");
+sleep_ms(5000);
+    logMsg("3");
 
     _c64.loop_thread_end = false;
     _c64.loop_thread_is_end = false;
@@ -193,6 +196,7 @@ int main() {
         _c64.IncMouseHiddenCounter();
 //
         _c64.WarpModeLoop();
+        sleep_ms(1000);
     }
     return 0;
 }

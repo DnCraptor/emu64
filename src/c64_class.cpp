@@ -100,6 +100,7 @@ C64Class::C64Class(
 {
 ///    *ret_error = 0;
 
+    logMsg("1.1");
     this->start_minimized = start_minimized;
 
     changed_graphic_modi = false;
