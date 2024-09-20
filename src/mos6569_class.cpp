@@ -48,12 +48,16 @@
 #define XMOD				504
 #define YMOD                312
 
+extern "C" {
+#include "vga.h"
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-VICII::VICII()
+VICII::VICII(uint8_t* p)
 {
-    current_video_buffer = 0;
-    video_buffer = video_buffer_back[0];
+///    current_video_buffer = 0;
+    video_buffer = p; /// video_buffer_back[0];
 
     for(int i=0; i<8; i++)
 	{
@@ -186,8 +190,8 @@ VICII::~VICII()
 
 void VICII::SwitchVideoBuffer()
 {
-    current_video_buffer++;
-    video_buffer = video_buffer_back[current_video_buffer & 1];
+///    current_video_buffer++;
+///    video_buffer = video_buffer_back[current_video_buffer & 1];
 }
 
 void VICII::GetRegister(VIC_STRUCT *vic_reg)

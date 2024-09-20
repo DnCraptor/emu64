@@ -41,7 +41,7 @@ class VICII
 {
 public:
 /// Funktionen ///
-    VICII();
+    VICII(uint8_t* b);
     ~VICII();
     void SwitchVideoBuffer();
     void GetRegister(VIC_STRUCT *vic_reg);
@@ -84,8 +84,8 @@ public:
     bool        vic_config[VIC_CONFIG_NUM];
 
     uint8_t     *video_buffer;
-    uint8_t     video_buffer_back[2][VIDEO_BUFFER_SIZE];
-    int         current_video_buffer;
+///    uint8_t     video_buffer_back[2][VIDEO_BUFFER_SIZE];
+///    int         current_video_buffer;
 
     uint8_t     last_read_gp_access;
 

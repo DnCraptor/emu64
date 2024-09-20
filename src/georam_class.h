@@ -52,7 +52,7 @@ class GEORAMClass
     // Variablen
     bool		geo_ram_insert;
                                         // $DFFE   $DFFF
-    uint8_t     ram[MAX_GEORAM_SIZE];   // 64   x  256  x  256 = 4MiB // 4194304
+    uint8_t*     ram = (uint8_t*)0x10000000;///[MAX_GEORAM_SIZE];   // 64   x  256  x  256 = 4MiB // 4194304
 
     uint32_t    mem_frame;
     uint8_t     _dffe, _dfff;

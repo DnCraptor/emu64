@@ -22,7 +22,6 @@ extern "C" {
 
 MMU::MMU(void)
 {
-logMsg("0");
     for(int i=0;i<0x10000;i++) RAM[i]=0;
 
     VicIOWriteProc = std::bind(&MMU::WriteRam,this,std::placeholders::_1,std::placeholders::_2);

@@ -143,6 +143,18 @@ static FATFS fs;
 
 #define C64Takt 985248  // 50,124542Hz (Original C64 PAL)
 
+static MMU _mmu;
+static MOS6510 _cpu;
+static VICII _vic(VIDEORAM);
+static MOS6581_8085 _sid1(0, 44100, 16);
+static MOS6581_8085 _sid2(1, 44100, 16);
+static MOS6526 _cia1(0);
+static MOS6526 _cia2(1);
+static CartridgeClass _crt;
+static REUClass _reu;
+static GEORAMClass _geo;
+static TAPE1530 _tape(44100, 16, C64Takt);
+
 int main() {
 #if (OVERCLOCKING > 270)
     hw_set_bits(&vreg_and_chip_reset_hw->vreg, VREG_AND_CHIP_RESET_VREG_VSEL_BITS);
@@ -196,31 +208,19 @@ int main() {
         sleep_ms(3000);
     }
 
-    MMU* mmu = new MMU();
-logMsg("1");
-    MOS6510* cpu = new MOS6510();
-logMsg("4");
-    VICII* vic = new VICII();
-logMsg("5");
-    int sid_ret_error;
-logMsg("6");
-    MOS6581_8085* sid1 = new MOS6581_8085(0,44100,16,&sid_ret_error);
-logMsg("7");
-    MOS6581_8085* sid2 = new MOS6581_8085(1,44100,16,&sid_ret_error);
-logMsg("8");
-    MOS6526* cia1 = new MOS6526(0);
-logMsg("9");
-    MOS6526* cia2 = new MOS6526(1);
-logMsg("10");
-    CartridgeClass* crt = new CartridgeClass();
-logMsg("11");
-    REUClass* reu = new REUClass();
-logMsg("12");
-    GEORAMClass* geo = new GEORAMClass();
-logMsg("13");
-    TAPE1530* tape = new TAPE1530(44100,16,C64Takt);
-logMsg("14");
+    MMU* mmu = &_mmu;
+    MOS6510* cpu = &_cpu;
+    VICII* vic = &_vic;
+    MOS6581_8085* sid1 = &_sid1;
+    MOS6581_8085* sid2 = &_sid2;
+    MOS6526* cia1 = &_cia1;
+    MOS6526* cia2 = &_cia2;
+    CartridgeClass* crt = &_crt;;
+    REUClass* reu = &_reu;
+    GEORAMClass* geo = &_geo;
+    TAPE1530* tape = &_tape;
 
+        logMsg("!!!");
 //    reset86();
     while (runing) {
 //        if_manager();

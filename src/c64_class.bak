@@ -937,7 +937,7 @@ void C64Class::WarpModeLoop()
     ////////////////////////// Testweise //////////////////////////
 
     static int zyklen_counter = 0;
-    if(++zyklen_counter == 19656)
+    if(++zyklen_counter == RecSampleBufferSZ)
     {
         zyklen_counter = 0;
         if(wait_reset_ready)
@@ -1058,7 +1058,7 @@ void C64Class::FillAudioBuffer(uint8_t *stream, int laenge)
             ////////////////////////// Testweise //////////////////////////
 
             static int zyklen_counter = 0;
-            if(++zyklen_counter == 19656)
+            if(++zyklen_counter == RecSampleBufferSZ)
             {
                 zyklen_counter = 0;
                 if(wait_reset_ready)

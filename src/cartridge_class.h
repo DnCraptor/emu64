@@ -64,11 +64,11 @@ public:
     uint8_t     *lo_rom;                      // 0x8000
     uint8_t     *hi_rom;                      // 0xA000 oder 0xE000
 
-    uint8_t     rom_bank1[64*0x2000];         // Alle ChipRoms für 0x8000	(max 64 x 0x2000)
-    uint8_t     rom_bank2[64*0x2000];         // Alle ChipRoms für 0xA000 oder 0xE000 (max 64 x 0x2000)
+    uint8_t*     rom_bank1 = (uint8_t*)0x10000000; ///[64*0x2000];         // Alle ChipRoms für 0x8000	(max 64 x 0x2000)
+    uint8_t*     rom_bank2 = (uint8_t*)0x10000000; ///[64*0x2000];         // Alle ChipRoms für 0xA000 oder 0xE000 (max 64 x 0x2000)
 
-    uint8_t     rom_bank1_tmp[64*0x2000];     // Alle ChipRoms für 0x8000	(max 64 x 0x2000)
-    uint8_t     rom_bank2_tmp[64*0x2000];     // Alle ChipRoms für 0xA000 oder 0xE000 (max 64 x 0x2000)
+    uint8_t*     rom_bank1_tmp = (uint8_t*)0x10000000; ///[64*0x2000];     // Alle ChipRoms für 0x8000	(max 64 x 0x2000)
+    uint8_t*     rom_bank2_tmp = (uint8_t*)0x10000000; ///[64*0x2000];     // Alle ChipRoms für 0xA000 oder 0xE000 (max 64 x 0x2000)
 
     uint8_t     *c64_ram;                     // Kompletter C64 RAM
 

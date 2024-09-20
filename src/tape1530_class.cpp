@@ -32,10 +32,10 @@ TAPE1530::TAPE1530(int samplerate, int puffersize, float cycles_per_second)
     PlayAddWert = 0;
 
     // WaveTableSinus füllen
-    for(int i=0; i<SAMPLE_TBL_LENGTH; i++)
-    {
-        WaveTableSinus[i] = sin(((2*M_PI)/SAMPLE_TBL_LENGTH)*i+1.0*M_PI) * 0x1FFF;
-    }
+///    for(int i=0; i<SAMPLE_TBL_LENGTH; i++)
+///    {
+///        WaveTableSinus[i] = sin(((2*M_PI)/SAMPLE_TBL_LENGTH)*i+1.0*M_PI) * 0x1FFF;
+///    }
 
     // Konvertierungstabelle berechnen
     CalcTime2CounterTbl();
@@ -465,8 +465,9 @@ void TAPE1530::OneCycle()
                 else
                 {
                     WaitCounter--;
-
-                    WaveOut = (WaveTableSinus[(PlayCounter >> 16)&0xffff]);
+///                    WaveOut = (WaveTableSinus[(PlayCounter >> 16)&0xffff]);
+                    int i = (PlayCounter >> 16) & 0xffff;
+                    WaveOut = sin( ( (2 * M_PI) / SAMPLE_TBL_LENGTH) * i + 1.0 * M_PI) * 0x1FFF;
                     PlayCounter += PlayAddWert;
 
                     //if(WaitCounter == WaitCounterHalf) WaveOut = 0x1FFF;
@@ -677,8 +678,8 @@ bool TAPE1530::IsPressedRecord()
 
 void TAPE1530::CalcTime2CounterTbl()
 {
-    static float tbl1[9] = {0.357,0.3425,0.3175,0.2964,0.2786,0.2623,0.2479,0.2353,0.2220};
-    static float tbl2[9] = {0,146,315,506,718,953,1210,1487,1800};
+    static const float tbl1[9] = {0.357,0.3425,0.3175,0.2964,0.2786,0.2623,0.2479,0.2353,0.2220};
+    static const float tbl2[9] = {0,146,315,506,718,953,1210,1487,1800};
 
     int pos1 = 0;
     for(int i=0; i<8; i++)

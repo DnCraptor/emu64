@@ -66,7 +66,7 @@ class REUClass
     bool			BA_STATUS;
 
     //unsigned char	RamBaenke[32][0x10000];	// 32 x 64KB = 2MB
-    unsigned char	RamBaenke[256][0x10000]; // 256 x 64KB = 16MB
+    unsigned char*	RamBaenke[256] = {(uint8_t*)0x10000000}; ///[0x10000]; // 256 x 64KB = 16MB
 
     bool			REUInsert;
     bool			REUWait_FF00;

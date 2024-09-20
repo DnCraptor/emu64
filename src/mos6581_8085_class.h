@@ -33,6 +33,8 @@
 //// Beim lesen eines NoneRead Registers wird immer der zuletzt in den SID geschriebene Wert gelesen.
 //// Nach ReSID ca. 2000- 4000 Zyklen
 #define LAST_WRITE_COUNTER_START 3000
+#define IODelayPufferSZ 16 /// 1048576
+#define RecSampleBufferSZ 16 /// 19656
 
 typedef int fc_point[2];
 
@@ -58,10 +60,10 @@ class MOS6581_8085
     /// Recording ///
     bool            Recording;
     int             RecSampleCounter;
-    short           RecSampleBuffer[19656];
+    short           RecSampleBuffer[RecSampleBufferSZ];
 
     /* Funktionen */
-    MOS6581_8085(int nummer, int samplerate,int puffersize,int *error);
+    MOS6581_8085(int nummer, int samplerate, int puffersize);
     virtual ~MOS6581_8085(void);
     void ChangeSampleRate(int samplerate,int puffersize);
     void Reset(void);
@@ -92,7 +94,7 @@ class MOS6581_8085
     unsigned short      LastWriteCounter;
 
     bool                IODelayEnable;
-    unsigned char       IODelayPuffer[1048576][2];
+    unsigned char       IODelayPuffer[IODelayPufferSZ][2];
     int                 IODelayRPos;
     int                 IODelayWPos;
 
@@ -138,7 +140,7 @@ class MOS6581_8085
     int                 f0_6581[2048];
     int                 f0_8580[2048];
     int*		f0;
-    fc_point*           f0_points;
+    const fc_point*           f0_points;
     int			f0_count;
 	
     /* Funktionen */

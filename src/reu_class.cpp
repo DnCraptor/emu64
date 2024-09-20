@@ -83,9 +83,11 @@ int REUClass::SaveRAM(const char *filename)
 
 void REUClass::ClearRAM(void)
 {
+    /*
     for(int i=0;i<256;i++)
         for(int j=0;j<0x10000;j++)
             RamBaenke[i][j] = 0;
+            */
 }
 
 void REUClass::OneZyklus(void)

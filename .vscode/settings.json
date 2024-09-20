@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "functional": "cpp",
-        "roms.h": "c"
+        "roms.h": "c",
+        "cstring": "cpp"
     }
 }
