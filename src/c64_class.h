@@ -39,7 +39,7 @@
 
 #define MAX_STRING_LENGTH 64 // 1024
 
-#define MAX_FLOPPY_NUM 2 // 4
+#define MAX_FLOPPY_NUM 1 // 4
 #define MAX_SDL_JOYSTICK_NUM 1 // 16
 #define MAX_VJOY_NUM 1 // 16
 

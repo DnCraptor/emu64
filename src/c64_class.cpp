@@ -175,6 +175,7 @@ C64Class::C64Class(
     start_screenshot = false;
     enable_exit_screenshot = false;
     frame_skip_counter = 1;
+    logMsg("1.2");
 
     SetDistortion(-0.05f);
 
@@ -286,6 +287,7 @@ C64Class::C64Class(
 ///    sprintf(out_text, ">> Alle Audio Devices:\n");
 ///    LogText(out_text);
 
+    logMsg("1.3");
     int i, count;/** = SDL_GetNumAudioDevices(0);
     for (i = 0; i < count; ++i)
     {
@@ -388,6 +390,7 @@ C64Class::C64Class(
     game_port1 = 0;
     game_port2 = 0;
 
+    logMsg("1.4");
     /// Init Classes ///
     mmu = &_mmu;
     cpu = &_cpu;
@@ -424,9 +427,11 @@ C64Class::C64Class(
     sprintf(stepper_inc_filename,"%sstepper_inc.raw",floppy_sound_path);
     sprintf(stepper_dec_filename,"%sstepper_dec.raw",floppy_sound_path);
 */
+    logMsg("1.5");
     for(i=0; i<MAX_FLOPPY_NUM; i++)
     {
         floppy[i] = new Floppy1541(&reset_wire,audio_frequency,16);
+    logMsg("1.6");
         floppy[i]->SetResetReady(&floppy_reset_ready[i],0xEBFF);
         floppy[i]->SetC64IEC(&c64_iec_wire);
         floppy[i]->SetDeviceNumber(static_cast<uint8_t>(8+i));
@@ -470,6 +475,7 @@ C64Class::C64Class(
     vic->RefreshProc = std::bind(&C64Class::VicRefresh,this,std::placeholders::_1);
     reu->ReadProcTbl = mmu->CPUReadProcTbl;
     reu->WriteProcTbl = mmu->CPUWriteProcTbl;
+    logMsg("1.7");
 
     mmu->VicIOWriteProc = std::bind(&VICII::WriteIO,vic,std::placeholders::_1,std::placeholders::_2);
     mmu->VicIOReadProc = std::bind(&VICII::ReadIO,vic,std::placeholders::_1);
@@ -3725,6 +3731,8 @@ void C64Class::NextSystemCycle()
 
     // PHI0
     if(enable_ext_wires) rdy_ba_wire = ext_rdy_wire;
+
+Disassemble(0, cpu->PC, true);
     cpu_states[0] = cpu->OneZyklus();
 
     // PHI1
