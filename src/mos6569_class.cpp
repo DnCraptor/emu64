@@ -1283,8 +1283,12 @@ void VICII::OneCycle()
 		}
 		else 
 		{
-            if(draw_this_line && draw_line_counter < 199) { // actually - prev. line for now
-                memcpy(video_buffer_320_200 + draw_line_counter * 320, _video_buffer_line + h_border_compare_right[csel], 320);
+            int y1 = first_display_line + 35;
+            if(draw_this_line && current_rasterline >= y1) { // actually - prev. line for now
+                int yi = current_rasterline - y1;
+                if (yi < 200) {
+                    memcpy(video_buffer_320_200 + yi * 320, _video_buffer_line + h_border_compare_right[csel] + 79, 320);
+                }
             }
 
             current_rasterline++;
