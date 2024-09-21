@@ -20,13 +20,15 @@ extern "C" {
 #include "audio.h"
 #endif
 
+#include "mos6569_class.h"
+
 bool SD_CARD_AVAILABLE = false;
 bool runing = true;
 static int16_t last_dss_sample = 0;
 #if PICO_ON_DEVICE
 bool PSRAM_AVAILABLE = false;
 uint32_t DIRECT_RAM_BORDER = PSRAM_AVAILABLE ? RAM_SIZE : (SD_CARD_AVAILABLE ? RAM_PAGE_SIZE : RAM_SIZE);
-extern "C" uint8_t VIDEORAM[VIDEORAM_SIZE];
+uint8_t VIDEORAM[VIDEORAM_SIZE];
 
 #ifdef I2S_SOUND
 i2s_config_t i2s_config = i2s_get_default_config();

@@ -6,7 +6,7 @@
 #include <pico/stdlib.h>
 
 uint16_t RAM_PAGES[RAM_BLOCKS] = { 0 };
-uint8_t VIDEORAM[VIDEORAM_SIZE];
+/// uint8_t VIDEORAM[VIDEORAM_SIZE];
 
 static uint32_t get_ram_page_for(const uint32_t addr32);
 

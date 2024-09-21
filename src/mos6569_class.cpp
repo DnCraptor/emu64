@@ -1273,7 +1273,7 @@ void VICII::OneCycle()
 	{
     case 1:
 
-        if (current_rasterline == (total_rasterlines-1))
+        if (current_rasterline == 199 ) ///(total_rasterlines-1))
 		{
             vertical_blanking = true;
             current_rasterline = 0;
@@ -1293,7 +1293,7 @@ void VICII::OneCycle()
 
         if(draw_this_line)
         {
-            video_buffer_line = &video_buffer[draw_line_counter++ * MAX_XW]; // Zeiger für Aktuelle Zeile setzen
+            video_buffer_line = &video_buffer[(draw_line_counter++ - first_display_line) * 320];/// MAX_XW]; // Zeiger für Aktuelle Zeile setzen
             border_line_pos = 0;
         }
 
