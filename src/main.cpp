@@ -178,7 +178,8 @@ int main() {
         logMsg((char *)"Mo PSRAM or SD CARD available. Only 160Kb RAM will be usable...");
         sleep_ms(3000);
     }
-static C64Class _c64;
+
+    static C64Class _c64;
 
     _c64.loop_thread_end = false;
     _c64.loop_thread_is_end = false;
@@ -188,6 +189,9 @@ static C64Class _c64;
     c64->SetWindowSize(320,200);
     c64->StartEmulation();
     c64->HardReset();
+
+///    graphics_set_mode(TGA_320x200x16);
+    graphics_set_mode(VGA_320x200x256);
 
     while (!_c64.warp_thread_end) {
         if(_c64.sdl_thread_pause) {

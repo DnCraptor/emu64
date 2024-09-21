@@ -536,7 +536,14 @@ void set_start_debug_line(int _start_debug_line) {
 }
 
 #if BOOT_DEBUG
-void logFile(char* msg);
+#include "ff.h"
+static FIL fileD;
+void logFile(char* msg) {
+    f_open(&fileD, "/boot.log", FA_WRITE | FA_OPEN_APPEND);
+    UINT bw;
+    f_write(&fileD, msg, strlen(msg), &bw);
+    f_close(&fileD);
+}
 #endif
 
 extern volatile bool manager_started;

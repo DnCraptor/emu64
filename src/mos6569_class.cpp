@@ -15,7 +15,7 @@
 
 #include "mos6569_class.h"
 #include <stdio.h>
-
+#include "fs.h"
 //PAL
 
 #define Read(adresse) ReadProcTbl[(adresse)>>8](adresse)
@@ -1293,7 +1293,7 @@ void VICII::OneCycle()
 
         if(draw_this_line)
         {
-            video_buffer_line = &video_buffer[draw_line_counter++*MAX_XW];		// Zeiger für Aktuelle Zeile setzen
+            video_buffer_line = &video_buffer[draw_line_counter++ * MAX_XW]; // Zeiger für Aktuelle Zeile setzen
             border_line_pos = 0;
         }
 
@@ -1695,30 +1695,6 @@ void VICII::OneCycle()
     /// Aktueller Zyklus ist nun zuende ///
 
     current_cycle++;
-/**
-    if(current_cycle == 1)
-    {
-        if(breakpoints[current_rasterline+1] & 256)
-        {
-                *break_status |= 256;
-                break_values[8] = current_rasterline+1;
-        }
-    }
-    else
-    {
-        if(breakpoints[current_rasterline] & 256)
-        {
-                *break_status |= 256;
-                break_values[8] = current_rasterline;
-        }
-    }
-
-    if(breakpoints[current_cycle] & 512)
-	{
-        *break_status |= 512;
-        break_values[9] = current_cycle;
-    }
-    */
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1930,163 +1906,137 @@ void VICII::WriteIO(uint16_t address, uint8_t value)
 		case 0x00: case 0x02: case 0x04: case 0x06:
 		case 0x08: case 0x0A: case 0x0C: case 0x0E:
             reg_mx[address >> 1] = (reg_mx[address >> 1] & 0xFF00) | value;
-		break;
-
+	    	break;
 		/// Sprite Y Position
 		case 0x01: case 0x03: case 0x05: case 0x07:
 		case 0x09: case 0x0B: case 0x0D: case 0x0F:
             reg_my[address >> 1] = value;
-		break;
-
+    		break;
 		/// Sprite X Position MSB
 		case 0x10:
 			int i, j;
-                        reg_mx8 = value;
+            reg_mx8 = value;
 			for (i=0, j=1; i<8; i++, j<<=1)
 			{
-                                if (reg_mx8 & j) reg_mx[i] |= 0x100;
-                                else reg_mx[i] &= 0xFF;
+                if (reg_mx8 & j) reg_mx[i] |= 0x100;
+                else reg_mx[i] &= 0xFF;
 			}
 			break;
-
 		// Control Register 1
 		case 0x11:
-                        reg_ctrl_1 = value;
-                        reg_y_scroll = value & 7;
+            reg_ctrl_1 = value;
+            reg_y_scroll = value & 7;
 
-                        new_irq_raster = static_cast<uint16_t>((reg_irq_raster & 0xFF) | ((value & 0x80) << 1));
-                        if (reg_irq_raster != new_irq_raster && current_rasterline == new_irq_raster) RasterIRQ();
-                        reg_irq_raster = new_irq_raster;
+            new_irq_raster = static_cast<uint16_t>((reg_irq_raster & 0xFF) | ((value & 0x80) << 1));
+            if (reg_irq_raster != new_irq_raster && current_rasterline == new_irq_raster) RasterIRQ();
+            reg_irq_raster = new_irq_raster;
 			
-                        graphic_mode = ((reg_ctrl_1 & 0x60) | (reg_ctrl_2 & 0x10)) >> 4;
+            graphic_mode = ((reg_ctrl_1 & 0x60) | (reg_ctrl_2 & 0x10)) >> 4;
 		
 			// Prüfen ob Badlines zugelassen sind
-                        if ((current_rasterline == 0x30) && (value & 0x10)) badline_enable = true;
+            if ((current_rasterline == 0x30) && (value & 0x10)) badline_enable = true;
 
 			// Prüfen auf Badline zustand
-                        if((current_rasterline>=0x30) && (current_rasterline<=0xF7) && (reg_y_scroll == (current_rasterline&7)) && (badline_enable == true))
+            if((current_rasterline>=0x30) && (current_rasterline<=0xF7) && (reg_y_scroll == (current_rasterline&7)) && (badline_enable == true))
 			{
-                                badline_status = true;
+                badline_status = true;
 			}
             else badline_status = false;
-
 			// RSEL
             rsel = (value & 0x08)>>3;
-
 			// DEN
             den = (value & 0x10)>>4;
             write_reg_0x11 = true;
 			break;
-
 		/// Rasterzähler
 		case 0x12:
-                        //reg_irq_raster = (reg_irq_raster & 0xFF00) | wert;
-
-                        new_irq_raster = (reg_irq_raster & 0xFF00) | value;
-                        if (reg_irq_raster != new_irq_raster && current_rasterline == new_irq_raster) RasterIRQ();
-                        reg_irq_raster = new_irq_raster;
+            new_irq_raster = (reg_irq_raster & 0xFF00) | value;
+            if (reg_irq_raster != new_irq_raster && current_rasterline == new_irq_raster) RasterIRQ();
+            reg_irq_raster = new_irq_raster;
 			break;
-
 		/// Sprite Enable
 		case 0x15:
             reg_me = value;
 			break;
-
 		// Control Register 2
 		case 0x16:
             reg_ctrl_2 = value;
             reg_x_scroll = value & 7;
             graphic_mode = ((reg_ctrl_1 & 0x60) | (reg_ctrl_2 & 0x10)) >> 4;
-			
             // csel
             csel = (value & 0x08)>>3;
-			
 			break;
-
 		/// Sprite Y-Expansion
 		case 0x17:
-                        reg_mye = value;
-                        sprite_y_exp_flip_flop |= ~value;
-			break;
-
+            reg_mye = value;
+            sprite_y_exp_flip_flop |= ~value;
+    		break;
 		/// Speicher Pointer
 		case 0x18:
-                        reg_vbase = value;
-                        matrix_base = static_cast<uint16_t>((value & 0xf0) << 6);
-                        char_base = static_cast<uint16_t>((value & 0x0e) << 10);
-                        bitmap_base = static_cast<uint16_t>((value & 0x08) << 10);
+            reg_vbase = value;
+            matrix_base = static_cast<uint16_t>((value & 0xf0) << 6);
+            char_base = static_cast<uint16_t>((value & 0x0e) << 10);
+            bitmap_base = static_cast<uint16_t>((value & 0x08) << 10);
 			break;
-
 		/// IRQ Flags
 		case 0x19: 
-                        irq_flag = irq_flag & (~value & 0x0F);
-                        if (irq_flag & irq_mask) irq_flag |= 0x80;
-                        else CpuClearInterrupt(VIC_IRQ);
+            irq_flag = irq_flag & (~value & 0x0F);
+            if (irq_flag & irq_mask) irq_flag |= 0x80;
+            else CpuClearInterrupt(VIC_IRQ);
 			break;
-		
 		/// IRQ Mask
 		case 0x1A:
-                        irq_mask = value & 0x0F;
-                        if (irq_flag & irq_mask)
+            irq_mask = value & 0x0F;
+            if (irq_flag & irq_mask)
 			{
-                                irq_flag |= 0x80;
-                                CpuTriggerInterrupt(VIC_IRQ);
+                irq_flag |= 0x80;
+                CpuTriggerInterrupt(VIC_IRQ);
 			} else {
-                                irq_flag &= 0x7F;
-                                CpuClearInterrupt(VIC_IRQ);
+                irq_flag &= 0x7F;
+                CpuClearInterrupt(VIC_IRQ);
 			}
 			break;
-
 		/// Sprite Daten Priorität
 		case 0x1B:
-                        reg_mdp = value;
+            reg_mdp = value;
 			break;
-
 		/// Sprite Multicolor
 		case 0x1C:
-                        reg_mmc = value;
+            reg_mmc = value;
 			break;
-
 		/// Sprite X-Expansion
 		case 0x1D:
-                        reg_mxe = value;
+            reg_mxe = value;
 			break;
-
 		/// Rahmenfarbe
 		case 0x20:
-                        reg_ec = value&15;
-                        if(vic_config[VIC_GREY_DOTS_ON]) is_write_reg_ec = true;
+            reg_ec = value&15;
+            if(vic_config[VIC_GREY_DOTS_ON]) is_write_reg_ec = true;
 			break;
 		/// Hintergrundfarbe 0
         case 0x21:
-                        reg_b0c = value&15;
-                        if(vic_config[VIC_GREY_DOTS_ON]) is_write_reg_b0c = true;
+            reg_b0c = value&15;
+            if(vic_config[VIC_GREY_DOTS_ON]) is_write_reg_b0c = true;
 			break;
 		/// Hintergrundfarbe 1
-                case 0x22: reg_b1c	= value&15;
-                        //isWriteColorReg = true;
+        case 0x22: reg_b1c	= value&15;
 			break;
 		/// Hintergrundfarbe 2
-                case 0x23: reg_b2c	= value&15;
-                        //isWriteColorReg = true;
+        case 0x23: reg_b2c	= value&15;
 			break;
 		/// Hintergrundfarbe 3
-                case 0x24: reg_b3c	= value&15;
-                        //isWriteColorReg = true;
+        case 0x24: reg_b3c	= value&15;
 			break;
 		/// Sprite Multicolor 0
-                case 0x25: reg_mm0  = value&15;
-                        //isWriteColorReg = true;
+        case 0x25: reg_mm0  = value&15;
 			break;
 		/// Sprite Multicolor 1
-                case 0x26: reg_mm1  = value&15;
-                        //isWriteColorReg = true;
+        case 0x26: reg_mm1  = value&15;
 			break;
-
 		/// Sprite Farbe
 		case 0x27: case 0x28: case 0x29: case 0x2A:
 		case 0x2B: case 0x2C: case 0x2D: case 0x2E:
-                        reg_mcolor[address - 0x27] = value&15;
+            reg_mcolor[address - 0x27] = value&15;
 			break;
 	}
 }
