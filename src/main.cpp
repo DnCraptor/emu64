@@ -178,15 +178,16 @@ int main() {
         logMsg((char *)"Mo PSRAM or SD CARD available. Only 160Kb RAM will be usable...");
         sleep_ms(3000);
     }
-    logMsg("1");
 static C64Class _c64;
-    logMsg("2");
-sleep_ms(5000);
-    logMsg("3");
 
     _c64.loop_thread_end = false;
     _c64.loop_thread_is_end = false;
     _c64.sdl_thread_pause = false;
+
+    C64Class* c64 = &_c64;
+    c64->SetWindowSize(320,200);
+    c64->StartEmulation();
+    c64->HardReset();
 
     while (!_c64.warp_thread_end) {
         if(_c64.sdl_thread_pause) {
@@ -196,7 +197,7 @@ sleep_ms(5000);
         _c64.IncMouseHiddenCounter();
 //
         _c64.WarpModeLoop();
-        sleep_ms(1000);
+//        sleep_ms(1000);
     }
     return 0;
 }

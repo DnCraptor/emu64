@@ -39,7 +39,6 @@ Floppy1541::Floppy1541(bool *reset, int samplerate, int buffersize):
     FloppyEnabled(false)
 
 {
-    logMsg("1.5.1");
     RESET = reset;
     GCR_PTR = nullptr;
 ///    breakgroup_count = 0;
@@ -50,40 +49,34 @@ Floppy1541::Floppy1541(bool *reset, int samplerate, int buffersize):
     cpu = new MOS6502();
     via1 = new MOS6522(0);
     via2 = new MOS6522(1);
-    logMsg("1.5.2");
 
     cpu->ReadProcTbl = ReadProcTbl;
     cpu->WriteProcTbl = WriteProcTbl;
 
     via1->FloppyIEC = &FloppyIECLocal;
 
-    logMsg("1.5.2.1");
     for(int i=0;i<256;i++)
     {
         ReadProcTbl[i] = std::bind(&Floppy1541::ReadNoMem,this,std::placeholders::_1);
         WriteProcTbl[i] = std::bind(&Floppy1541::WriteNoMem,this,std::placeholders::_1,std::placeholders::_2);
     }
-    logMsg("1.5.2.2");
 
     for(int i=0;i<8;i++)
     {
         ReadProcTbl[i] = std::bind(&Floppy1541::ReadRam,this,std::placeholders::_1);
         WriteProcTbl[i] = std::bind(&Floppy1541::WriteRam,this,std::placeholders::_1,std::placeholders::_2);
     }
-    logMsg("1.5.2.3");
 
     for(int i=0;i<64;i++)
     {
          ReadProcTbl[i+0xC0] = std::bind(&Floppy1541::ReadRom,this,std::placeholders::_1);
     }
-    logMsg("1.5.2.4");
 
     ReadProcTbl[0x18] = std::bind(&MOS6522::ReadIO,via1,std::placeholders::_1);
     WriteProcTbl[0x18] = std::bind(&MOS6522::WriteIO,via1,std::placeholders::_1,std::placeholders::_2);
 
     ReadProcTbl[0x1C] = std::bind(&MOS6522::ReadIO,via2,std::placeholders::_1);
     WriteProcTbl[0x1C] = std::bind(&MOS6522::WriteIO,via2,std::placeholders::_1,std::placeholders::_2);
-    logMsg("1.5.2.5");
 
     via2->SyncFound = std::bind(&Floppy1541::SyncFound,this);
     via2->ReadGCRByte = std::bind(&Floppy1541::ReadGCRByte,this);
@@ -96,27 +89,23 @@ Floppy1541::Floppy1541(bool *reset, int samplerate, int buffersize):
 
     via2->TriggerInterrupt = std::bind(&MOS6502::TriggerInterrupt,cpu,std::placeholders::_1);
     via2->ClearInterrupt = std::bind(&MOS6502::ClearInterrupt,cpu,std::placeholders::_1);
-    logMsg("1.5.2.6");
 
     Jumper = 0;
     via1->Jumper = &Jumper;
     WriteProtect = WriteProtectAkt = false;
     via2->WriteProtect = &WriteProtect;
     via2->DiskMotorOn = &DiskMotorOn;
-    logMsg("1.5.2.7");
 
     DiskChangeSimState = 0;
 
     cpu->RESET = reset;
     via1->RESET = reset;
     via2->RESET = reset;
-    logMsg("1.5.3");
 
     for(int i=0;i<D64_IMAGE_SIZE;i++) D64Image[i]=0x00;
 ///    D64ImageToGCRImage();
     UnLoadDiskImage();
 
-    logMsg("1.5.4");
     AktHalbSpur = 1;
 
     /// Für Floppysound ///

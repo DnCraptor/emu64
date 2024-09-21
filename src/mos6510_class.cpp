@@ -389,13 +389,13 @@ bool MOS6510::OneZyklus(void)
 
 	if(*RDY) {
 		CpuWait = false;
-		logMsg("*RDY-> CpuWait=true");
+///		logMsg("*RDY-> CpuWait=true");
 	}
 
 	if(!*RESET)
 	{
 		CpuWait=true;
-		logMsg("!*RESET-> CpuWait=true");
+///		logMsg("!*RESET-> CpuWait=true");
 	}
 
 	if((*RESET == true) && (RESET_OLD == false))
