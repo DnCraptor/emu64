@@ -398,7 +398,7 @@ C64Class::C64Class(
     geo = &_geo;
     tape = &_tape;;
 
-    vic_buffer = vic->video_buffer;
+    vic_buffer = vic->video_buffer_320_200;
 
     cia2->floppy_iec_wire = &floppy_iec_wire;
     cia2->c64_iec_wire = &c64_iec_wire;

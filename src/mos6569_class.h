@@ -83,7 +83,7 @@ public:
 */
     bool        vic_config[VIC_CONFIG_NUM];
 
-    uint8_t     *video_buffer;
+    uint8_t*    video_buffer_320_200;
 ///    uint8_t     video_buffer_back[2][VIDEO_BUFFER_SIZE];
 ///    int         current_video_buffer;
 
@@ -104,7 +104,9 @@ private:
 
     /// Variablen ///
 
-    uint8_t *video_buffer_line;
+    uint8_t* video_buffer_line; /// TODO: copy to 
+    uint8_t _video_buffer_line[MAX_XW]; /// TODO: copy to 
+    ///video_buffer[(draw_line_counter++ - first_display_line) * 320];/// MAX_XW]; // Zeiger für Aktuelle Zeile setzen
     int     draw_line_counter;
     bool    draw_this_line;
 

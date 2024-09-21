@@ -57,7 +57,7 @@ extern "C" {
 VICII::VICII(uint8_t* p)
 {
 ///    current_video_buffer = 0;
-    video_buffer = p; /// video_buffer_back[0];
+    video_buffer_320_200 = p; /// video_buffer_back[0];
 
     for(int i=0; i<8; i++)
 	{
@@ -1273,16 +1273,19 @@ void VICII::OneCycle()
 	{
     case 1:
 
-        if (current_rasterline == 199 ) ///(total_rasterlines-1))
+        if (current_rasterline == (total_rasterlines-1))
 		{
             vertical_blanking = true;
             current_rasterline = 0;
-            RefreshProc(video_buffer);
+            RefreshProc(video_buffer_320_200);
             draw_line_counter = 0;
             vc_base = 0;
 		}
 		else 
 		{
+            if(draw_this_line && draw_line_counter < 199) { // actually - prev. line for now
+                memcpy(video_buffer_320_200 + draw_line_counter * 320, _video_buffer_line + h_border_compare_right[csel], 320);
+            }
 
             current_rasterline++;
 
@@ -1293,7 +1296,9 @@ void VICII::OneCycle()
 
         if(draw_this_line)
         {
-            video_buffer_line = &video_buffer[(draw_line_counter++ - first_display_line) * 320];/// MAX_XW]; // Zeiger für Aktuelle Zeile setzen
+            draw_line_counter++;
+///            video_buffer_line = &video_buffer[draw_line_counter++ * 320];/// MAX_XW]; // Zeiger für Aktuelle Zeile setzen
+            video_buffer_line = _video_buffer_line;
             border_line_pos = 0;
         }
 
