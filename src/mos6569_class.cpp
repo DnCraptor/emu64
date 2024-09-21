@@ -1287,7 +1287,10 @@ void VICII::OneCycle()
             if(draw_this_line && current_rasterline >= y1) { // actually - prev. line for now
                 int yi = current_rasterline - y1;
                 if (yi < 200) {
-                    memcpy(video_buffer_320_200 + yi * 320, _video_buffer_line + h_border_compare_right[csel] + 79, 320);
+                    uint8_t* li = video_buffer_320_200 + yi * 320;
+                    uint8_t* si = _video_buffer_line + h_border_compare_right[csel] + 79;
+                    memcpy(li, si, 320);
+                    //for (int xi = 0; xi < 320; ++xi) { li[xi] = si[xi] >> 2; }
                 }
             }
 

@@ -390,7 +390,7 @@ C64Class::C64Class(
     cpu = &_cpu;
     vic = &_vic;
     sid1 = &_sid1;
-    sid2 = &_sid1; /// 2!
+    sid2 = 0; // &_sid2; /// 2!
     cia1 = &_cia1;
     cia2 = &_cia2;
     crt = &_crt;
@@ -523,7 +523,7 @@ C64Class::C64Class(
     vic->color_ram = mmu->GetFarbramPointer();
     vic->cia2_port_a = cia2_port_a.GetOutputBitsPointer();
     sid1->RESET = &reset_wire;
-    sid2->RESET = &reset_wire;
+    if (sid2) sid2->RESET = &reset_wire;
     reu->BA = &rdy_ba_wire;
     reu->CpuTriggerInterrupt = std::bind(&MOS6510::TriggerInterrupt,cpu,std::placeholders::_1);
     reu->CpuClearInterrupt = std::bind(&MOS6510::ClearInterrupt,cpu,std::placeholders::_1);
@@ -569,13 +569,15 @@ C64Class::C64Class(
     sid1->Reset();
     sid1->SetPotXY(poti_x, poti_y);
 
-    sid2->RESET = &reset_wire;
-    sid2->SetC64Zyklen(c64_frequency);     // PAL 63*312*50 = 982800
-    sid2->SetChipType(MOS_8580);
-    sid2->SoundOutputEnable = true;
-    sid2->CycleExact = true;
-    sid2->FilterOn = true;
-    sid2->Reset();
+    if (sid2) {
+        sid2->RESET = &reset_wire;
+        sid2->SetC64Zyklen(c64_frequency);     // PAL 63*312*50 = 982800
+        sid2->SetChipType(MOS_8580);
+        sid2->SoundOutputEnable = true;
+        sid2->CycleExact = true;
+        sid2->FilterOn = true;
+        sid2->Reset();
+    }
 
     enable_stereo_sid = false;
     enable_stereo_sid_6channel_mode = false;
@@ -1014,7 +1016,7 @@ int C64Class::GetAudioSampleRate()
 void C64Class::FillAudioBuffer(uint8_t *stream, int laenge)
 {
     sid1->ZeroSoundBufferPos();
-    sid2->ZeroSoundBufferPos();
+    if (sid2) sid2->ZeroSoundBufferPos();
 
     for(int i=0; i<MAX_FLOPPY_NUM; i++)
         floppy[i]->ZeroSoundBufferPos();
@@ -1127,7 +1129,7 @@ void C64Class::FillAudioBuffer(uint8_t *stream, int laenge)
                 for(int i=0; i<(sample_buffer_size); i+=2)
                 {
                     audio_16bit_buffer[i] = static_cast<int16_t>(sid1->SoundBuffer[j] * sid_volume);
-                    audio_16bit_buffer[i+1] = static_cast<int16_t>(sid2->SoundBuffer[j] * sid_volume);
+                    if (sid2) audio_16bit_buffer[i+1] = static_cast<int16_t>(sid2->SoundBuffer[j] * sid_volume);
                     j++;
                 }
             }
@@ -1136,7 +1138,7 @@ void C64Class::FillAudioBuffer(uint8_t *stream, int laenge)
                 int j=0;
                 for(int i=0; i<(sample_buffer_size); i+=2)
                 {
-                    audio_16bit_buffer[i] = audio_16bit_buffer[i+1] = static_cast<int16_t>(static_cast<float_t>(sid1->SoundBuffer[j] + sid2->SoundBuffer[j]) * sid_volume * 0.75f);
+                    audio_16bit_buffer[i] = audio_16bit_buffer[i+1] = static_cast<int16_t>(static_cast<float_t>(sid1->SoundBuffer[j] + (sid2 ? sid2->SoundBuffer[j] : 0)) * sid_volume * 0.75f);
                     j++;
                 }
             }
@@ -2649,7 +2651,7 @@ void C64Class::SetC64Speed(int speed)
 {
     c64_speed = speed;
     sid1->SetC64Zyklen(c64_frequency*(speed/100.f));
-    sid2->SetC64Zyklen(c64_frequency*(speed/100.f));
+    if (sid2) sid2->SetC64Zyklen(c64_frequency*(speed/100.f));
     tape->SetC64Zyklen(c64_frequency*(speed/100.f));
 }
 
@@ -3110,7 +3112,7 @@ void C64Class::SetDebugMode(bool status)
         one_cycle = false;
         one_opcode = false;
         sid1->SoundOutputEnable = false;
-        sid2->SoundOutputEnable = false;
+        if (sid2) sid2->SoundOutputEnable = false;
         for(int i=0; i<MAX_FLOPPY_NUM; i++) floppy[i]->SetEnableFloppySound(false);
     }
     else
@@ -3118,7 +3120,7 @@ void C64Class::SetDebugMode(bool status)
         one_cycle = false;
         one_opcode = false;
         sid1->SoundOutputEnable = true;
-        sid2->SoundOutputEnable = true;
+        if (sid2) sid2->SoundOutputEnable = true;
         for(int i=0; i<MAX_FLOPPY_NUM; i++) floppy[i]->SetEnableFloppySound(true);
     }
 }
@@ -3605,7 +3607,7 @@ void C64Class::SetFirstSidTyp(int sid_typ)
 
 void C64Class::SetSecondSidTyp(int sid_typ)
 {
-    sid2->SetChipType(sid_typ);
+    if (sid2) sid2->SetChipType(sid_typ);
 }
 
 void C64Class::EnableStereoSid(bool enable)
@@ -3616,6 +3618,7 @@ void C64Class::EnableStereoSid(bool enable)
 void C64Class::SetStereoSidAddress(uint16_t address)
 {
     stereo_sid_address = address;
+    if (sid2) 
     if(stereo_sid_address == 0xD400)
         sid2->SetIODelayEnable(true);
     else
@@ -3630,13 +3633,13 @@ void C64Class::SetStereoSid6ChannelMode(bool enable)
 void C64Class::SetSidCycleExact(bool enable)
 {
     sid1->CycleExact = enable;
-    sid2->CycleExact = enable;
+    if (sid2) sid2->CycleExact = enable;
 }
 
 void C64Class::SetSidFilter(bool enable)
 {
     sid1->FilterOn = enable;
-    sid2->FilterOn = enable;
+    if (sid2) sid2->FilterOn = enable;
 }
 
 bool C64Class::StartSidDump(const char *filename)
@@ -3719,8 +3722,16 @@ void C64Class::NextSystemCycle()
 
     // PHI0
     if(enable_ext_wires) rdy_ba_wire = ext_rdy_wire;
-
-///Disassemble(0, cpu->PC, true);
+/**
+static FIL fileD;
+static uint16_t pc = -1;
+if (pc != cpu->PC) {
+    f_open(&fileD, "/emu64.log", FA_WRITE | FA_OPEN_APPEND);
+    Disassemble(&fileD, cpu->PC, true);
+    f_close(&fileD);
+    pc = cpu->PC;
+}
+*/
     cpu_states[0] = cpu->OneZyklus();
 
     // PHI1
@@ -3728,7 +3739,7 @@ void C64Class::NextSystemCycle()
     cia1->OneZyklus();
     cia2->OneZyklus();
     sid1->OneZyklus();
-    if(enable_stereo_sid) sid2->OneZyklus();
+    if(enable_stereo_sid && sid2) sid2->OneZyklus();
     reu->OneZyklus();
     tape->OneCycle();
     cpu->Phi1();
@@ -3873,7 +3884,7 @@ void C64Class::WriteSidIO(uint16_t address, uint8_t value)
     if(enable_stereo_sid)
     {
         if((address & 0xFFE0) == 0xD400) sid1->WriteIO(address,value);
-        if((address & 0xFFE0) == stereo_sid_address) sid2->WriteIO(address,value);
+        if(sid2 && (address & 0xFFE0) == stereo_sid_address) sid2->WriteIO(address,value);
     }
     else
     {
